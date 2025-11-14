@@ -109,7 +109,7 @@
         const [mood, setMood] = useState(null); // low/ok/high
         const [focus, setFocus] = useState(null);
         const [connection, setConnection] = useState(null);
-        const checkinComplete = mood && focus && connection;
+        const checkinComplete = Boolean(mood && focus && connection);
         const [checkinAwarded, setCheckinAwarded] = useState(false);
 
         // Mini-game: Decision Duel
@@ -141,17 +141,22 @@
 
         // Functions
         const grantXP = (amount) => {
-          const add = () => {
-            const next = xp + amount;
-            if (next >= 100) {
-              setLevel((lvl) => lvl + 1);
-              setXp(next - 100);
-              setStars((s) => s + 1); // small bonus
-            } else {
-              setXp(next);
+          setXp((prevXp) => {
+            let total = prevXp + amount;
+            let levelsEarned = 0;
+
+            while (total >= 100) {
+              total -= 100;
+              levelsEarned += 1;
             }
-          };
-          add();
+
+            if (levelsEarned) {
+              setLevel((lvl) => lvl + levelsEarned);
+              setStars((curr) => curr + levelsEarned); // small bonus per level
+            }
+
+            return clamp(total, 0, 100);
+          });
         };
 
         const completeQuest = (id) => {
@@ -187,7 +192,10 @@
             name: h,
             points: Math.floor(Math.random() * 900 + 100),
           }));
-          if (house) base.find((x) => x.name === house).points += 120; // tiny bias to feel good
+          if (house) {
+            const favored = base.find((x) => x.name === house);
+            if (favored) favored.points += 120; // tiny bias to feel good
+          }
           return base.sort((a, b) => b.points - a.points).slice(0, 5);
         }, [house]);
 
