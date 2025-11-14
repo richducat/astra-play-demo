@@ -4,7 +4,7 @@ import React, { useMemo, useState, useEffect } from "react";
 const Card = ({ children, className = "" }) => (
   <div className={`rounded-2xl shadow-lg border border-black/5 bg-white/80 dark:bg-zinc-900/80 backdrop-blur p-5 ${className}`}>{children}</div>
 );
-const Button = ({ children, onClick, variant = "primary", className = "", disabled=false }) => {
+const Button = ({ children, onClick, variant = "primary", className = "", disabled = false }) => {
   const base = "px-4 py-2 rounded-xl font-semibold transition active:scale-[.98] disabled:opacity-50 disabled:cursor-not-allowed";
   const styles = {
     primary: "bg-indigo-600 hover:bg-indigo-700 text-white",
@@ -23,7 +23,18 @@ const Badge = ({ children }) => (
 
 // --- Fake content seeds ---
 const HOUSES = [
-  "Arcanum", "Beacon", "Catalyst", "Dawn", "Ember", "Flux", "Glyph", "Harbor", "Ion", "Jade", "Kindred", "Lumina"
+  "Arcanum",
+  "Beacon",
+  "Catalyst",
+  "Dawn",
+  "Ember",
+  "Flux",
+  "Glyph",
+  "Harbor",
+  "Ion",
+  "Jade",
+  "Kindred",
+  "Lumina",
 ];
 
 const DAILY_SCENARIOS = [
@@ -52,7 +63,6 @@ const DAILY_SCENARIOS = [
 
 // --- Utilities ---
 const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
-const formatPct = (n) => `${Math.round(n * 100)}%`;
 
 export default function AstraPlayDemo() {
   // Theme
@@ -72,7 +82,7 @@ export default function AstraPlayDemo() {
   const [mood, setMood] = useState(null); // low/ok/high
   const [focus, setFocus] = useState(null);
   const [connection, setConnection] = useState(null);
-  const checkinComplete = mood && focus && connection;
+  const checkinComplete = Boolean(mood && focus && connection);
   const [checkinAwarded, setCheckinAwarded] = useState(false);
 
   // Mini-game: Decision Duel
@@ -100,17 +110,22 @@ export default function AstraPlayDemo() {
 
   // Functions
   const grantXP = (amount) => {
-    const add = () => {
-      const next = xp + amount;
-      if (next >= 100) {
-        setLevel(level + 1);
-        setXp(next - 100);
-        setStars(stars + 1); // small bonus
-      } else {
-        setXp(next);
+    setXp((prevXp) => {
+      let total = prevXp + amount;
+      let levelsEarned = 0;
+
+      while (total >= 100) {
+        total -= 100;
+        levelsEarned += 1;
       }
-    };
-    add();
+
+      if (levelsEarned) {
+        setLevel((lvl) => lvl + levelsEarned);
+        setStars((curr) => curr + levelsEarned); // small bonus per level
+      }
+
+      return clamp(total, 0, 100);
+    });
   };
 
   const completeQuest = (id) => {
@@ -142,9 +157,12 @@ export default function AstraPlayDemo() {
 
   // House leaderboard (demo)
   const leaderboard = useMemo(() => {
-    const base = HOUSES.map((h) => ({ name: h, points: Math.floor(Math.random()*900 + 100) }));
-    if (house) base.find(x => x.name === house).points += 120; // tiny bias to feel good
-    return base.sort((a,b) => b.points - a.points).slice(0,5);
+    const base = HOUSES.map((h) => ({ name: h, points: Math.floor(Math.random() * 900 + 100) }));
+    if (house) {
+      const favored = base.find((x) => x.name === house);
+      if (favored) favored.points += 120; // tiny bias to feel good
+    }
+    return base.sort((a, b) => b.points - a.points).slice(0, 5);
   }, [house]);
 
   // Copy helpers
