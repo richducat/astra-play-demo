@@ -292,6 +292,44 @@
 
         const guidanceViewed = () => completeQuest("q2");
 
+        // Featured tool helpers
+        const evaluateEnergyDate = (dateStr) => {
+          if (!dateStr) return null;
+          const day = new Date(dateStr).getDay();
+          const weekdayBonus = [1, 2, 3].includes(day);
+          const weekend = day === 0 || day === 6;
+          const tone = weekend
+            ? "Recharge day — lighten meetings and schedule creative blocks."
+            : weekdayBonus
+            ? "Green window — high alignment for outreach and launches."
+            : "Steady day — align 1:1s and prep decks.";
+          return {
+            label: weekend ? "Recharge" : weekdayBonus ? "High sync" : "Balanced",
+            note: tone,
+          };
+        };
+
+        const evaluateCueChats = (question) => {
+          if (!question.trim()) return null;
+          const nudge = question.toLowerCase().includes("launch")
+            ? "Pick a Tuesday/Wednesday window; ship early in the week."
+            : question.toLowerCase().includes("relationship")
+            ? "Pair conversations with calm, clear time blocks."
+            : "Anchor the decision to one small action within 48 hours.";
+          return `CueChats: ${nudge}`;
+        };
+
+        const evaluateBrandDate = (name, dateStr) => {
+          if (!name.trim() || !dateStr) return null;
+          const digits = dateStr.replace(/\D/g, "");
+          const base = digits
+            .split("")
+            .reduce((acc, d) => acc + parseInt(d, 10), 0);
+          const score = clamp(Math.round((reduceNumber(base) / 22) * 100), 5, 99);
+          const tag = score >= 75 ? "Launch-forward" : score >= 55 ? "Balanced" : "Iterate";
+          return { score, tag };
+        };
+
         // House leaderboard (demo)
         const leaderboard = useMemo(() => {
           const base = HOUSES.map((h) => ({
