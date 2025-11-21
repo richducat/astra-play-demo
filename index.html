@@ -180,6 +180,28 @@
         };
       };
       
+      class ErrorBoundary extends React.Component {
+        constructor(props) {
+          super(props);
+          this.state = { hasError: false };
+        }
+
+        static getDerivedStateFromError() {
+          return { hasError: true };
+        }
+
+        componentDidCatch(error, info) {
+          console.error('ErrorBoundary caught error', error, info);
+        }
+
+        render() {
+          if (this.state.hasError) {
+            return <div className="p-6 text-center text-sm">Something went wrong while loading this page.</div>;
+          }
+          return this.props.children;
+        }
+      }
+
       function AstraPlayDemo() {
         // Theme
         const [dark, setDark] = useState(true);
@@ -220,6 +242,18 @@
         const [compatB, setCompatB] = useState({ name: "Partner", date: "" });
         const [compatResult, setCompatResult] = useState(null);
         const [compatAwarded, setCompatAwarded] = useState(false);
+
+        // Energy calendar + cue chats + brand date tools
+        const [energyDate, setEnergyDate] = useState("");
+        const [energyOutcome, setEnergyOutcome] = useState(null);
+        const [energyAwarded, setEnergyAwarded] = useState(false);
+        const [cueQuestion, setCueQuestion] = useState("");
+        const [cueReply, setCueReply] = useState(null);
+        const [cueAwarded, setCueAwarded] = useState(false);
+        const [brandName, setBrandName] = useState("");
+        const [brandDate, setBrandDate] = useState("");
+        const [brandResult, setBrandResult] = useState(null);
+        const [brandAwarded, setBrandAwarded] = useState(false);
 
         // Mini-game: Decision Duel
         const scenario = useMemo(() => DAILY_SCENARIOS[Math.floor(Math.random()*DAILY_SCENARIOS.length)], []);
@@ -376,6 +410,33 @@
           if (result && !compatAwarded) {
             grantXP(10);
             setCompatAwarded(true);
+          }
+        };
+
+        const handleEnergyCalendar = () => {
+          const outcome = evaluateEnergyDate(energyDate);
+          setEnergyOutcome(outcome);
+          if (outcome && !energyAwarded) {
+            grantXP(8);
+            setEnergyAwarded(true);
+          }
+        };
+
+        const handleCueChats = () => {
+          const reply = evaluateCueChats(cueQuestion);
+          setCueReply(reply);
+          if (reply && !cueAwarded) {
+            grantXP(8);
+            setCueAwarded(true);
+          }
+        };
+
+        const handleBrandCheck = () => {
+          const result = evaluateBrandDate(brandName, brandDate);
+          setBrandResult(result);
+          if (result && !brandAwarded) {
+            grantXP(8);
+            setBrandAwarded(true);
           }
         };
 
@@ -1123,7 +1184,11 @@
         );
       }
       const rootEl = document.getElementById("root");
-      ReactDOM.createRoot(rootEl).render(<AstraPlayDemo />);
+      ReactDOM.createRoot(rootEl).render(
+        <ErrorBoundary>
+          <AstraPlayDemo />
+        </ErrorBoundary>
+      );
     </script>
   </body>
 </html>
