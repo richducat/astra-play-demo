@@ -120,28 +120,37 @@
       const getAstroSign = (dateStr) => {
         const date = new Date(dateStr);
         if (Number.isNaN(date.getTime())) return null;
+
         const month = date.getUTCMonth() + 1;
         const day = date.getUTCDate();
-        const boundaries = [
-          [1, 20, "Capricorn"],
-          [2, 19, "Aquarius"],
-          [3, 21, "Pisces"],
-          [4, 20, "Aries"],
-          [5, 21, "Taurus"],
-          [6, 21, "Gemini"],
-          [7, 23, "Cancer"],
-          [8, 23, "Leo"],
-          [9, 23, "Virgo"],
-          [10, 23, "Libra"],
-          [11, 22, "Scorpio"],
-          [12, 22, "Sagittarius"],
-          [12, 32, "Capricorn"],
+
+        const ranges = [
+          { start: [1, 20], end: [2, 18], sign: "Aquarius" },
+          { start: [2, 19], end: [3, 20], sign: "Pisces" },
+          { start: [3, 21], end: [4, 19], sign: "Aries" },
+          { start: [4, 20], end: [5, 20], sign: "Taurus" },
+          { start: [5, 21], end: [6, 20], sign: "Gemini" },
+          { start: [6, 21], end: [7, 22], sign: "Cancer" },
+          { start: [7, 23], end: [8, 22], sign: "Leo" },
+          { start: [8, 23], end: [9, 22], sign: "Virgo" },
+          { start: [9, 23], end: [10, 22], sign: "Libra" },
+          { start: [10, 23], end: [11, 21], sign: "Scorpio" },
+          { start: [11, 22], end: [12, 21], sign: "Sagittarius" },
+          // Capricorn spans the end and start of the calendar year.
+          { start: [12, 22], end: [12, 31], sign: "Capricorn" },
+          { start: [1, 1], end: [1, 19], sign: "Capricorn" },
         ];
-        const match = boundaries.find(([, cutoff, sign], idx) => {
-          const currentMonth = idx + 1;
-          return (month === currentMonth && day < cutoff) || (month === currentMonth + 1 && day < boundaries[idx + 1]?.[1]);
-        });
-        return match ? match[2] : "Sagittarius";
+
+        return (
+          ranges.find(({ start, end }) => {
+            const [startMonth, startDay] = start;
+            const [endMonth, endDay] = end;
+            const inStartMonth = month === startMonth && day >= startDay;
+            const inEndMonth = month === endMonth && day <= endDay;
+            const inBetweenMonths = month > startMonth && month < endMonth;
+            return inStartMonth || inEndMonth || inBetweenMonths;
+          })?.sign || "Capricorn"
+        );
       };
       
       const getChineseZodiac = (dateStr) => {
