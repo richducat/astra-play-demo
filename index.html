@@ -290,6 +290,24 @@
           return { score: normalized, vibe, anchor };
         };
 
+        const generateProfileInsights = (payload) => {
+          const { birthdate, name, location } = payload;
+          const lifePath = computeLifePath(birthdate);
+          const astroSign = getAstroSign(birthdate);
+          const chineseZodiac = getChineseZodiac(birthdate);
+          const luckyNumbers = lifePath
+            ? [lifePath, (lifePath % 9) || 9, Math.max(1, (lifePath + 3) % 9)]
+            : [7, 3, 9];
+          const unluckyNumbers = lifePath
+            ? [Math.max(1, (lifePath + 4) % 9), Math.max(1, (lifePath + 6) % 9)]
+            : [4, 8];
+          const compat = generateCompatDates(birthdate);
+          const chart = astroSign
+            ? `${name || 'You'} carry ${astroSign} sun momentum with a ${chineseZodiac || 'mystery'} year imprint. Anchor decisions in ${location || 'your city'} during your ${compat?.business?.[0] || 'next high window'} surge.`
+            : 'Set your birth details to unlock a chart note.';
+          return { lifePath, astroSign, chineseZodiac, luckyNumbers, unluckyNumbers, compat, chart };
+        };
+
         // Functions
         const grantXP = (amount) => {
           setXp((prevXp) => {
@@ -308,6 +326,27 @@
       
             return clamp(total, 0, 100);
           });
+        };
+
+        const personalizeProfile = () => {
+          if (!profile.name || !profile.birthdate || !profile.email)
+            return alert('Add name, email, and birth date to personalize.');
+          const insights = generateProfileInsights(profile);
+          setProfileInsights(insights);
+          setBirthDate(profile.birthdate);
+          setLifePathNumber(insights.lifePath);
+          setShowOnboarding(false);
+          if (insights.lifePath && !lifePathAwarded) {
+            grantXP(15);
+            setLifePathAwarded(true);
+          }
+          if (insights.compat) {
+            setFriendTree([
+              { name: 'Muse', birthday: insights.compat.love[0], role: 'Love match' },
+              { name: 'Dealflow', birthday: insights.compat.business[0], role: 'Business partner' },
+              { name: 'Kindred', birthday: insights.compat.friend[0], role: 'Best friend' },
+            ]);
+          }
         };
       
         const completeQuest = (id) => {
@@ -338,6 +377,15 @@
             grantXP(10);
             setCompatAwarded(true);
           }
+        };
+
+        const addFriendToTree = () => {
+          if (!newFriend.name || !newFriend.birthday || !newFriend.role)
+            return alert('Add a name, birthday, and role to invite.');
+          setFriendTree((prev) => [...prev, newFriend]);
+          setNewFriend({ name: "", birthday: "", role: "" });
+          grantXP(15);
+          completeQuest('q4');
         };
 
         const handleDuel = (pick) => {
