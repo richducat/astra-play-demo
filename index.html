@@ -260,24 +260,7 @@
         const [landingEnergyResult, setLandingEnergyResult] = useState(null);
         const [landingCompatInput, setLandingCompatInput] = useState({ brand: "", date: "" });
         const [landingCompatResult, setLandingCompatResult] = useState(null);
-        const [landingLifeDate, setLandingLifeDate] = useState("");
-        const [landingLifeResult, setLandingLifeResult] = useState(null);
-        const [freeOutputs, setFreeOutputs] = useState({ energyUsed: false, compatUsed: false, lifeUsed: false });
-
-        // Lead capture + Tesla login (Google Sheet sync)
-        const GOOGLE_SHEET_ID = "1C3vEjFbw61imNVc7Cb9udlQd3LDcdNeN6trPwdvAHYw";
-        const GOOGLE_SHEET_WEBHOOK = "https://script.google.com/macros/s/AKfycbxpQKTDy6modpCnN7jakOStJ0dXiBuosKuo6oZvi57lc1j91-ukQS7D0_O20hV2Cwc/exec";
-        const [leadForm, setLeadForm] = useState({
-          fullName: "",
-          email: "",
-          phone: "",
-          teslaModel: "",
-          trim: "",
-          reason: "",
-        });
-        const [leadStatus, setLeadStatus] = useState("idle");
-        const [leadError, setLeadError] = useState(null);
-        const [teslaLogin, setTeslaLogin] = useState({ email: "", vin: "", consent: true });
+        const [freeOutputs, setFreeOutputs] = useState({ energyUsed: false, compatUsed: false });
 
         // Mini-game: Decision Duel
         const scenario = useMemo(() => DAILY_SCENARIOS[Math.floor(Math.random()*DAILY_SCENARIOS.length)], []);
@@ -486,75 +469,6 @@
           setFreeOutputs((prev) => ({ ...prev, compatUsed: true }));
         };
 
-        const runLandingLifePath = () => {
-          const lp = computeLifePath(landingLifeDate);
-          if (!lp) {
-            setLandingLifeResult({ error: "Add a valid birth date to preview your Life Path." });
-            return;
-          }
-          if (freeOutputs.lifeUsed) {
-            setLandingLifeResult({ locked: true, message: "Free Life Path reading used. Start Basics to keep exploring." });
-            return;
-          }
-          setLandingLifeResult({ locked: false, path: lp, blurb: LIFE_PATH_BLURBS[lp] });
-          setFreeOutputs((prev) => ({ ...prev, lifeUsed: true }));
-        };
-
-        const postToSheet = async (payload) => {
-          setLeadStatus("submitting");
-          setLeadError(null);
-          try {
-            const response = await fetch(GOOGLE_SHEET_WEBHOOK, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              mode: "no-cors",
-              body: JSON.stringify({
-                sheetId: GOOGLE_SHEET_ID,
-                ...payload,
-              }),
-            });
-
-            if (!response.ok && response.type !== "opaque") {
-              throw new Error("Request to Google Sheets failed.");
-            }
-
-            setLeadStatus("submitted");
-            setLeadForm({ fullName: "", email: "", phone: "", teslaModel: "", trim: "", reason: "" });
-          } catch (error) {
-            console.error("Google Sheet sync failed", error);
-            setLeadStatus("failed");
-            setLeadError("We couldn't reach Google Sheets. Please try again.");
-          }
-        };
-
-        const handleLeadSubmit = async (event) => {
-          event.preventDefault();
-          const payload = {
-            ...leadForm,
-            source: "signup-form",
-            timestamp: new Date().toISOString(),
-          };
-          await postToSheet(payload);
-        };
-
-        const handleTeslaConnect = async (event) => {
-          event.preventDefault();
-          const enriched = {
-            fullName: leadForm.fullName || "Tesla Connect", // prefer captured name
-            email: teslaLogin.email,
-            phone: leadForm.phone,
-            teslaModel: leadForm.teslaModel || "Model Y",
-            trim: leadForm.trim || "Long Range",
-            vin: teslaLogin.vin || "VIN-NOT-PROVIDED",
-            reason: leadForm.reason || "Tesla connect opt-in",
-            source: "tesla-login",
-            consent: teslaLogin.consent,
-            timestamp: new Date().toISOString(),
-          };
-
-          await postToSheet(enriched);
-        };
-
         const addFriendToTree = () => {
           if (!newFriend.name || !newFriend.birthday || !newFriend.role)
             return alert('Add a name, birthday, and role to invite.');
@@ -670,7 +584,7 @@
                 <a href="#plans" className="px-3 py-1 rounded-full bg-black/5 dark:bg-white/10">Pricing</a>
                 <a href="#faq" className="px-3 py-1 rounded-full bg-black/5 dark:bg-white/10">FAQ</a>
                 <div className="ml-auto flex items-center gap-2 text-xs sm:text-sm">
-                  <a href="#signup" className="font-semibold">Start Basics — $2.96/mo</a>
+                  <a href="#plans" className="font-semibold">Start Basics — $2.96/mo</a>
                   <span className="opacity-70 hidden sm:inline">|</span>
                   <a href="#login" className="opacity-80">Sign in</a>
                 </div>
@@ -678,7 +592,7 @@
             </header>
 
             {/* Marketing hero (snippet 1) */}
-            <section id="demo" className="max-w-6xl mx-auto px-4 py-10 space-y-6">
+            <section className="max-w-6xl mx-auto px-4 py-10 space-y-6">
               <div className="grid lg:grid-cols-2 gap-8 items-center">
                 <div className="space-y-4">
                   <div className="flex items-center gap-2 text-sm font-semibold text-indigo-600">
@@ -690,8 +604,8 @@
                     Astra maps your high-probability windows for money, relationships, and big decisions—using your birth imprint + astrology.
                   </p>
                   <div className="flex flex-wrap gap-3">
-                    <Button className="text-sm" onClick={() => document.getElementById('signup')?.scrollIntoView({ behavior: 'smooth' })}>$2.96/mo — Start Basic</Button>
-                    <Button variant="ghost" className="text-sm" onClick={() => document.getElementById('plans')?.scrollIntoView({ behavior: 'smooth' })}>Compare plans</Button>
+                    <Button className="text-sm">$2.96/mo — Start Basic</Button>
+                    <Button variant="ghost" className="text-sm">Compare plans</Button>
                   </div>
                   <p className="text-sm opacity-70">Cancel anytime. Not a horoscope—decision timing + compatibility.</p>
                   <div className="flex items-center gap-4 text-sm">
@@ -816,335 +730,6 @@
                   <p className="text-xs opacity-70 mt-1">Cancel anytime. All payments build toward Lifetime status.</p>
                 </Card>
               </div>
-
-              <section id="signup" className="grid lg:grid-cols-2 gap-6 text-sm">
-                <Card className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-xs uppercase tracking-wide text-indigo-600">Start Basics — $2.96/mo</p>
-                      <h3 className="text-xl font-bold">Sign up for Astra (Google Sheets capture)</h3>
-                      <p className="text-xs opacity-70">We collect your details and push them directly into the shared Google Sheet.</p>
-                    </div>
-                    <Badge>{leadStatus === 'submitted' ? 'Synced' : 'Secure'}</Badge>
-                  </div>
-                  <form className="grid sm:grid-cols-2 gap-3" onSubmit={handleLeadSubmit}>
-                    <div className="space-y-1 sm:col-span-2">
-                      <label className="text-xs opacity-70">Full name</label>
-                      <input
-                        required
-                        value={leadForm.fullName}
-                        onChange={(e) => setLeadForm({ ...leadForm, fullName: e.target.value })}
-                        className="w-full px-3 py-2 rounded-xl bg-white/80 dark:bg-zinc-800/80 border border-black/10 dark:border-white/10"
-                        placeholder="Alex Driver"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-xs opacity-70">Email</label>
-                      <input
-                        required
-                        type="email"
-                        value={leadForm.email}
-                        onChange={(e) => setLeadForm({ ...leadForm, email: e.target.value })}
-                        className="w-full px-3 py-2 rounded-xl bg-white/80 dark:bg-zinc-800/80 border border-black/10 dark:border-white/10"
-                        placeholder="you@example.com"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-xs opacity-70">Phone</label>
-                      <input
-                        required
-                        value={leadForm.phone}
-                        onChange={(e) => setLeadForm({ ...leadForm, phone: e.target.value })}
-                        className="w-full px-3 py-2 rounded-xl bg-white/80 dark:bg-zinc-800/80 border border-black/10 dark:border-white/10"
-                        placeholder="(555) 123-4567"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-xs opacity-70">Tesla model</label>
-                      <select
-                        required
-                        value={leadForm.teslaModel}
-                        onChange={(e) => setLeadForm({ ...leadForm, teslaModel: e.target.value })}
-                        className="w-full px-3 py-2 rounded-xl bg-white/80 dark:bg-zinc-800/80 border border-black/10 dark:border-white/10"
-                      >
-                        <option value="">Select model</option>
-                        <option>Model S</option>
-                        <option>Model 3</option>
-                        <option>Model X</option>
-                        <option>Model Y</option>
-                        <option>Cybertruck</option>
-                      </select>
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-xs opacity-70">Trim</label>
-                      <input
-                        required
-                        value={leadForm.trim}
-                        onChange={(e) => setLeadForm({ ...leadForm, trim: e.target.value })}
-                        className="w-full px-3 py-2 rounded-xl bg-white/80 dark:bg-zinc-800/80 border border-black/10 dark:border-white/10"
-                        placeholder="Long Range, Performance, etc."
-                      />
-                    </div>
-                    <div className="space-y-1 sm:col-span-2">
-                      <label className="text-xs opacity-70">Reason for signup</label>
-                      <select
-                        required
-                        value={leadForm.reason}
-                        onChange={(e) => setLeadForm({ ...leadForm, reason: e.target.value })}
-                        className="w-full px-3 py-2 rounded-xl bg-white/80 dark:bg-zinc-800/80 border border-black/10 dark:border-white/10"
-                      >
-                        <option value="">Pick a feature</option>
-                        <option>Energy Calendar windows</option>
-                        <option>Compatibility checks</option>
-                        <option>Life Path reading</option>
-                        <option>AstraChats AI</option>
-                        <option>Pricing & plan comparison</option>
-                        <option>Free demo output</option>
-                      </select>
-                    </div>
-                    <div className="sm:col-span-2 flex items-center gap-3 flex-wrap">
-                      <Button type="submit" disabled={leadStatus === 'submitting'}>
-                        {leadStatus === 'submitting' ? 'Sending to Google Sheet…' : 'Submit & sync'}
-                      </Button>
-                      <a href="#login" className="text-sm font-semibold">Already a member? Sign in</a>
-                      {leadStatus === 'submitted' ? (
-                        <span className="text-emerald-600 text-xs">Captured to Google Sheet</span>
-                      ) : null}
-                      {leadStatus === 'failed' ? (
-                        <span className="text-amber-500 text-xs">{leadError}</span>
-                      ) : null}
-                    </div>
-                  </form>
-                </Card>
-
-                <Card id="login" className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-xs uppercase tracking-wide text-indigo-600">Optional Tesla login</p>
-                      <h3 className="text-xl font-bold">Fast connect via Tesla</h3>
-                      <p className="text-xs opacity-70">We capture any Tesla data you share and push it to the Google Sheet.</p>
-                    </div>
-                    <Badge>Optional</Badge>
-                  </div>
-                  <form className="space-y-2" onSubmit={handleTeslaConnect}>
-                    <div className="space-y-1">
-                      <label className="text-xs opacity-70">Tesla account email</label>
-                      <input
-                        required
-                        type="email"
-                        value={teslaLogin.email}
-                        onChange={(e) => setTeslaLogin({ ...teslaLogin, email: e.target.value })}
-                        className="w-full px-3 py-2 rounded-xl bg-white/80 dark:bg-zinc-800/80 border border-black/10 dark:border-white/10"
-                        placeholder="tesla@email.com"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-xs opacity-70">VIN (optional)</label>
-                      <input
-                        value={teslaLogin.vin}
-                        onChange={(e) => setTeslaLogin({ ...teslaLogin, vin: e.target.value })}
-                        className="w-full px-3 py-2 rounded-xl bg-white/80 dark:bg-zinc-800/80 border border-black/10 dark:border-white/10"
-                        placeholder="5YJYGDEE8PF000000"
-                      />
-                    </div>
-                    <label className="flex items-center gap-2 text-xs">
-                      <input
-                        type="checkbox"
-                        checked={teslaLogin.consent}
-                        onChange={(e) => setTeslaLogin({ ...teslaLogin, consent: e.target.checked })}
-                        className="h-4 w-4 rounded border border-black/20"
-                      />
-                      Share Tesla data to the Google Sheet for this demo.
-                    </label>
-                    <div className="flex items-center gap-3">
-                      <Button type="submit" disabled={leadStatus === 'submitting'}>Connect via Tesla</Button>
-                      {leadStatus === 'submitted' ? (
-                        <span className="text-emerald-600 text-xs">Synced to sheet</span>
-                      ) : null}
-                    </div>
-                    <p className="text-xs opacity-70">Demo only—use sandbox Tesla credentials. We only store what you share.</p>
-                  </form>
-                </Card>
-              </section>
-            </section>
-
-            {/* Landing snippet 2 — Life Path demo */}
-            <section id="life-path" className="max-w-6xl mx-auto px-4 pb-10 space-y-8">
-              <div className="grid lg:grid-cols-2 gap-8 items-start">
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 text-sm font-semibold text-indigo-600">
-                    <span className="text-lg">✨</span>
-                    <span>Life Path • Self-knowledge</span>
-                  </div>
-                  <h2 className="text-3xl md:text-4xl font-black leading-tight">Get your Life Path reading.</h2>
-                  <p className="text-lg text-zinc-700 dark:text-zinc-200">
-                    Astra blends numerology and astrology to unlock your high-probability windows for decisions, relationships, and timing.
-                  </p>
-                  <div className="flex flex-wrap gap-3">
-                    <Button onClick={runLandingLifePath}>Try a free Life Path reading</Button>
-                    <Button variant="ghost" className="text-sm" onClick={() => document.getElementById('plans')?.scrollIntoView({ behavior: 'smooth' })}>
-                      Start Basics — $2.96/mo
-                    </Button>
-                  </div>
-                  <p className="text-sm opacity-70">Not a horoscope — it’s decision timing and compatibility. Cancel anytime.</p>
-                  <div className="flex items-center gap-4 text-sm">
-                    <div className="font-semibold">⭐️ 4.8</div>
-                    <span className="opacity-70">3,000+ reviews</span>
-                    <span className="opacity-70">200,000+ users</span>
-                  </div>
-                  <div className="flex flex-wrap gap-3 text-sm">
-                    <Button variant="ghost" className="text-sm" onClick={() => document.getElementById('life-path-demo')?.scrollIntoView({ behavior: 'smooth' })}>Try the demo</Button>
-                    <Button variant="ghost" className="text-sm" onClick={() => document.getElementById('why-astra')?.scrollIntoView({ behavior: 'smooth' })}>How it works</Button>
-                    <Button variant="ghost" className="text-sm" onClick={() => document.getElementById('plans')?.scrollIntoView({ behavior: 'smooth' })}>Plans</Button>
-                    <Button variant="ghost" className="text-sm" onClick={() => document.getElementById('plans')?.scrollIntoView({ behavior: 'smooth' })}>See all plans</Button>
-                  </div>
-                </div>
-                <Card id="life-path-demo" className="space-y-3 border-indigo-100 dark:border-indigo-900/40">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-xs uppercase tracking-wide text-indigo-600">Free demo — 1 reading</p>
-                      <h3 className="text-xl font-bold">Life Path</h3>
-                    </div>
-                    <Badge>{freeOutputs.lifeUsed ? 'Used' : 'Free'}</Badge>
-                  </div>
-                  <label className="text-sm font-semibold">Your birth date</label>
-                  <input
-                    type="date"
-                    value={landingLifeDate}
-                    onChange={(e) => setLandingLifeDate(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-white/80 dark:bg-zinc-800/80 border border-black/10 dark:border-white/10"
-                  />
-                  <Button onClick={runLandingLifePath} className="w-full">Get my Life Path</Button>
-                  {landingLifeResult ? (
-                    landingLifeResult.locked ? (
-                      <p className="text-sm text-amber-500">{landingLifeResult.message}</p>
-                    ) : landingLifeResult.error ? (
-                      <p className="text-sm text-amber-500">{landingLifeResult.error}</p>
-                    ) : (
-                      <div className="p-3 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 text-sm space-y-1">
-                        <div className="text-4xl font-black text-indigo-700 dark:text-indigo-200">Life Path {landingLifeResult.path}</div>
-                        <p className="font-semibold">{landingLifeResult.blurb}</p>
-                        <p className="text-xs opacity-70">Demo is illustrative and not a guarantee of outcomes.</p>
-                      </div>
-                    )
-                  ) : (
-                    <p className="text-xs opacity-70">One free reading to test the tool. Upgrade to keep exploring.</p>
-                  )}
-                </Card>
-              </div>
-
-              <Card id="why-astra" className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs uppercase tracking-wide text-indigo-600">Why Astra works</p>
-                    <h3 className="text-lg font-bold">Astra blends numerology + astrology (Astra methodology)</h3>
-                  </div>
-                  <Badge>Guidance, not guarantees</Badge>
-                </div>
-                <p className="text-sm opacity-80">Think of it as normalizing both systems with structured data so you can plan with confidence.</p>
-                <div className="grid sm:grid-cols-2 gap-3 text-sm">
-                  <div className="p-3 rounded-xl bg-white/80 dark:bg-zinc-800/70 border border-black/5 dark:border-white/10">
-                    <div className="font-semibold">Timing calendar</div>
-                    <p className="text-xs opacity-70">Daily favorability, best moves, and alerts.</p>
-                  </div>
-                  <div className="p-3 rounded-xl bg-white/80 dark:bg-zinc-800/70 border border-black/5 dark:border-white/10">
-                    <div className="font-semibold">Life Path</div>
-                    <p className="text-xs opacity-70">Decode your imprint and align decisions.</p>
-                  </div>
-                  <div className="p-3 rounded-xl bg-white/80 dark:bg-zinc-800/70 border border-black/5 dark:border-white/10">
-                    <div className="font-semibold">People & brand compatibility</div>
-                    <p className="text-xs opacity-70">Match with partners, friends, teams, and 22,000+ brands.</p>
-                  </div>
-                  <div className="p-3 rounded-xl bg-white/80 dark:bg-zinc-800/70 border border-black/5 dark:border-white/10">
-                    <div className="font-semibold">AstraChats (AI)</div>
-                    <p className="text-xs opacity-70">Ask timing + compatibility questions in plain English.</p>
-                  </div>
-                </div>
-              </Card>
-
-              <section id="plans" className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs uppercase tracking-wide text-indigo-600">Start with Basics (upgrade anytime)</p>
-                    <h3 className="text-xl font-bold">Simple plans. Cancel anytime.</h3>
-                  </div>
-                  <Button variant="ghost" className="text-sm">See all plans</Button>
-                </div>
-                <div className="grid md:grid-cols-3 gap-4 text-sm">
-                  <Card className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <h4 className="font-bold text-lg">The Basics</h4>
-                      <Badge>$2.96 / month</Badge>
-                    </div>
-                    <ul className="list-disc pl-4 space-y-1">
-                      <li>Life Path readings</li>
-                      <li>Energy Calendar (essentials)</li>
-                      <li>Search 1,000+ popular Astras</li>
-                    </ul>
-                    <p className="text-xs opacity-70">Upgrade to Astra+ anytime—payments count toward Lifetime.</p>
-                    <Button className="w-full" onClick={() => document.getElementById('signup')?.scrollIntoView({ behavior: 'smooth' })}>
-                      Start Basics
-                    </Button>
-                  </Card>
-
-                  <Card className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <h4 className="font-bold text-lg">Astrachats</h4>
-                      <Badge>$8 / month</Badge>
-                    </div>
-                    <ul className="list-disc pl-4 space-y-1">
-                      <li>Includes all features from The Basics</li>
-                      <li>Instant chat for energy, compatibility, & decoding</li>
-                      <li>Built on verified Astra data, updated weekly</li>
-                    </ul>
-                    <p className="text-xs opacity-70">Great for quick insights; upgrade to Astra+ for full reports.</p>
-                    <Button className="w-full" variant="ghost">Start Astrachats</Button>
-                  </Card>
-
-                  <Card className="space-y-2 border-2 border-indigo-200 dark:border-indigo-800">
-                    <div className="flex items-center justify-between">
-                      <h4 className="font-bold text-lg">Astra+</h4>
-                      <Badge>$17 / month</Badge>
-                    </div>
-                    <ul className="list-disc pl-4 space-y-1">
-                      <li>Unlock everything: Search, Chats, Compatibility Filters</li>
-                      <li>26,000+ Astras with daily insights for timing</li>
-                      <li>Access exclusive research from Gary Grinberg & team</li>
-                    </ul>
-                    <p className="text-xs opacity-70">Every payment builds toward Lifetime — own your progress.</p>
-                    <Button className="w-full" variant="success">Start Astra+</Button>
-                  </Card>
-                </div>
-              </section>
-
-              <Card id="faq" className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-xl font-bold">FAQ</h3>
-                  <Button variant="ghost" className="text-sm">Get the app</Button>
-                </div>
-                <div className="space-y-3 text-sm">
-                  <details className="p-3 rounded-xl bg-white/80 dark:bg-zinc-800/70 border border-black/5 dark:border-white/10" open>
-                    <summary className="font-semibold cursor-pointer">Is Astra a horoscope app?</summary>
-                    <p className="opacity-80 mt-1">Not really. Astra focuses on decision timing and compatibility—when to act and with whom—not daily zodiac blurbs.</p>
-                  </details>
-                  <details className="p-3 rounded-xl bg-white/80 dark:bg-zinc-800/70 border border-black/5 dark:border-white/10">
-                    <summary className="font-semibold cursor-pointer">Do I need my exact birth time?</summary>
-                    <p className="opacity-80 mt-1">No. You can start without it. Providing birth time unlocks more precise timing.</p>
-                  </details>
-                  <details className="p-3 rounded-xl bg-white/80 dark:bg-zinc-800/70 border border-black/5 dark:border-white/10">
-                    <summary className="font-semibold cursor-pointer">Can I cancel anytime?</summary>
-                    <p className="opacity-80 mt-1">Yes. Manage your subscription through your device’s app store settings.</p>
-                  </details>
-                  <details className="p-3 rounded-xl bg-white/80 dark:bg-zinc-800/70 border border-black/5 dark:border-white/10">
-                    <summary className="font-semibold cursor-pointer">Does Astra guarantee outcomes?</summary>
-                    <p className="opacity-80 mt-1">No. Astra offers guidance to help you plan. Outcomes depend on many factors. Use for informational/entertainment purposes.</p>
-                  </details>
-                </div>
-                <div className="flex flex-wrap gap-3 text-sm items-center">
-                  <Button className="text-sm">Get the app</Button>
-                  <p className="opacity-70">Unlock deeper insights, full reports, and more tools.</p>
-                </div>
-              </Card>
             </section>
 
                   <main className="max-w-6xl mx-auto px-4 py-6 grid lg:grid-cols-3 gap-6">
