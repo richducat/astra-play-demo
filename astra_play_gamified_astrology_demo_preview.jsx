@@ -61,6 +61,26 @@ const DAILY_SCENARIOS = [
   },
 ];
 
+const LIFE_PATH_BLURBS = {
+  1: "Pioneer energy—leadership, self-starter vibes, and fresh momentum.",
+  2: "Diplomat energy—collaboration, intuition, and harmonizing groups.",
+  3: "Creator energy—communication, play, and shipping ideas quickly.",
+  4: "Builder energy—systems, discipline, and turning plans into reality.",
+  5: "Explorer energy—adaptability, travel, and learning by doing.",
+  6: "Steward energy—care, hosting, and steadying the people around you.",
+  7: "Analyst energy—research, reflection, and spotting the signal in noise.",
+  8: "Strategist energy—ambition, influence, and resourcing the mission.",
+  9: "Humanitarian energy—big-picture service and closing loops with grace.",
+  11: "Visionary master number—intuition, inspiration, and elevating the room.",
+  22: "Architect master number—precision, long-view planning, and bold builds.",
+};
+
+const ENERGY_WINDOWS = [
+  { day: "Today", focus: "Deep Work", window: "10:00–12:00", cue: "Ship 1 thing while momentum is high." },
+  { day: "Tomorrow", focus: "Connection", window: "14:00–16:00", cue: "Send 2 outreach notes or schedule a check-in." },
+  { day: "Sat", focus: "Recharge", window: "09:30–11:00", cue: "Low stakes movement + reset your calendar." },
+];
+
 // --- Utilities ---
 const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
 
@@ -85,6 +105,27 @@ export default function AstraPlayDemo() {
   const checkinComplete = Boolean(mood && focus && connection);
   const [checkinAwarded, setCheckinAwarded] = useState(false);
 
+  // Tools + calculators
+  const [birthDate, setBirthDate] = useState("");
+  const [lifePathNumber, setLifePathNumber] = useState(null);
+  const [lifePathAwarded, setLifePathAwarded] = useState(false);
+  const [compatA, setCompatA] = useState({ name: "You", date: "" });
+  const [compatB, setCompatB] = useState({ name: "Partner", date: "" });
+  const [compatResult, setCompatResult] = useState(null);
+  const [compatAwarded, setCompatAwarded] = useState(false);
+
+  // Featured tools
+  const [energyDate, setEnergyDate] = useState("");
+  const [energyOutcome, setEnergyOutcome] = useState(null);
+  const [energyAwarded, setEnergyAwarded] = useState(false);
+  const [cueQuestion, setCueQuestion] = useState("");
+  const [cueReply, setCueReply] = useState(null);
+  const [cueAwarded, setCueAwarded] = useState(false);
+  const [brandName, setBrandName] = useState("");
+  const [brandDate, setBrandDate] = useState("");
+  const [brandResult, setBrandResult] = useState(null);
+  const [brandAwarded, setBrandAwarded] = useState(false);
+
   // Mini-game: Decision Duel
   const scenario = useMemo(() => DAILY_SCENARIOS[Math.floor(Math.random()*DAILY_SCENARIOS.length)], []);
   const [choice, setChoice] = useState(null);
@@ -107,6 +148,42 @@ export default function AstraPlayDemo() {
     if (tags.length === 0) tags.push('Light touch today. One meaningful action > many half‑starts.');
     return tags.slice(0,3);
   }, [mood, focus, connection]);
+
+  // Helpers for calculators
+  const reduceNumber = (value) => {
+    let sum = value;
+    while (sum > 22 || (sum > 9 && sum !== 11 && sum !== 22)) {
+      sum = sum.toString().split('').reduce((acc, digit) => acc + parseInt(digit, 10), 0);
+    }
+    return sum;
+  };
+
+  const computeLifePath = (dateStr) => {
+    const digits = dateStr.replace(/\D/g, '');
+    if (digits.length < 8) return null;
+    const total = digits.split('').reduce((acc, d) => acc + parseInt(d, 10), 0);
+    return reduceNumber(total);
+  };
+
+  const computeCompatibility = (a, b) => {
+    const names = `${a.name}${b.name}`.toLowerCase();
+    const birthdays = `${a.date}${b.date}`.replace(/\D/g, '');
+    if (birthdays.length < 8) return null;
+    const nameScore = names.split('').reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
+    const dateScore = birthdays.split('').reduce((acc, d) => acc + parseInt(d, 10), 0);
+    const base = reduceNumber((nameScore + dateScore) % 99);
+    const normalized = clamp(Math.round((base / 22) * 100), 1, 99);
+    const vibe =
+      normalized >= 80
+        ? 'High sync—greenlight shared moves.'
+        : normalized >= 60
+        ? 'Supportive—align on timing and clarify roles.'
+        : normalized >= 40
+        ? 'Neutral—start small and iterate together.'
+        : 'Edgy—set guardrails and keep it light.';
+    const anchor = normalized >= 60 ? 'Double down on shared wins.' : 'Keep scope small & playful.';
+    return { score: normalized, vibe, anchor };
+  };
 
   // Functions
   const grantXP = (amount) => {
@@ -139,6 +216,52 @@ export default function AstraPlayDemo() {
     setCheckinAwarded(true);
   };
 
+  const handleLifePathChange = (value) => {
+    setBirthDate(value);
+    const lp = computeLifePath(value);
+    setLifePathNumber(lp);
+    if (lp && !lifePathAwarded) {
+      grantXP(10);
+      setLifePathAwarded(true);
+    }
+  };
+
+  const handleCompat = () => {
+    const result = computeCompatibility(compatA, compatB);
+    setCompatResult(result);
+    if (result && !compatAwarded) {
+      grantXP(10);
+      setCompatAwarded(true);
+    }
+  };
+
+  const handleEnergyCalendar = () => {
+    const outcome = evaluateEnergyDate(energyDate);
+    setEnergyOutcome(outcome);
+    if (outcome && !energyAwarded) {
+      grantXP(8);
+      setEnergyAwarded(true);
+    }
+  };
+
+  const handleCueChats = () => {
+    const reply = evaluateCueChats(cueQuestion);
+    setCueReply(reply);
+    if (reply && !cueAwarded) {
+      grantXP(8);
+      setCueAwarded(true);
+    }
+  };
+
+  const handleBrandCheck = () => {
+    const result = evaluateBrandDate(brandName, brandDate);
+    setBrandResult(result);
+    if (result && !brandAwarded) {
+      grantXP(8);
+      setBrandAwarded(true);
+    }
+  };
+
   const handleDuel = (pick) => {
     if (duelDone) return;
     setChoice(pick);
@@ -154,6 +277,42 @@ export default function AstraPlayDemo() {
   };
 
   const guidanceViewed = () => completeQuest('q2');
+
+  // Featured tool helpers
+  const evaluateEnergyDate = (dateStr) => {
+    if (!dateStr) return null;
+    const day = new Date(dateStr).getDay();
+    const weekdayBonus = [1, 2, 3].includes(day);
+    const weekend = day === 0 || day === 6;
+    const tone = weekend
+      ? 'Recharge day — lighten meetings and schedule creative blocks.'
+      : weekdayBonus
+      ? 'Green window — high alignment for outreach and launches.'
+      : 'Steady day — align 1:1s and prep decks.';
+    return {
+      label: weekend ? 'Recharge' : weekdayBonus ? 'High sync' : 'Balanced',
+      note: tone,
+    };
+  };
+
+  const evaluateCueChats = (question) => {
+    if (!question.trim()) return null;
+    const nudge = question.toLowerCase().includes('launch')
+      ? 'Pick a Tuesday/Wednesday window; ship early in the week.'
+      : question.toLowerCase().includes('relationship')
+      ? 'Pair conversations with calm, clear time blocks.'
+      : 'Anchor the decision to one small action within 48 hours.';
+    return `CueChats: ${nudge}`;
+  };
+
+  const evaluateBrandDate = (name, dateStr) => {
+    if (!name.trim() || !dateStr) return null;
+    const digits = dateStr.replace(/\D/g, '');
+    const base = digits.split('').reduce((acc, d) => acc + parseInt(d, 10), 0);
+    const score = clamp(Math.round((reduceNumber(base) / 22) * 100), 5, 99);
+    const tag = score >= 75 ? 'Launch-forward' : score >= 55 ? 'Balanced' : 'Iterate';
+    return { score, tag };
+  };
 
   // House leaderboard (demo)
   const leaderboard = useMemo(() => {
@@ -273,7 +432,207 @@ export default function AstraPlayDemo() {
               </div>
             </div>
           </Card>
-        </section>
+
+        {/* Tools & calculators */}
+        <Card>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-bold text-lg">4) Astra Toolkit</h3>
+            <Badge>New</Badge>
+          </div>
+          <div className="grid lg:grid-cols-2 gap-4">
+            <div className="p-4 rounded-xl bg-indigo-50/70 dark:bg-indigo-900/30 border border-indigo-200/60 dark:border-indigo-800/40">
+              <div className="flex items-center justify-between mb-2">
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-indigo-600">Life Path</p>
+                  <p className="font-semibold">Numerology snapshot</p>
+                </div>
+                {lifePathNumber ? <Badge>#{lifePathNumber}</Badge> : null}
+              </div>
+              <label className="text-xs opacity-70">Birth date</label>
+              <input
+                type="date"
+                value={birthDate}
+                onChange={(e) => handleLifePathChange(e.target.value)}
+                className="mt-1 w-full px-3 py-2 rounded-lg bg-white/80 dark:bg-zinc-800/80 border border-black/10 dark:border-white/10 text-sm"
+              />
+              {lifePathNumber ? (
+                <div className="mt-2 text-sm">
+                  <p className="font-semibold">Life Path {lifePathNumber}</p>
+                  <p className="opacity-80">{LIFE_PATH_BLURBS[lifePathNumber]}</p>
+                </div>
+              ) : (
+                <p className="mt-2 text-xs opacity-70">Enter a birth date to see your core pattern.</p>
+              )}
+            </div>
+
+            <div className="p-4 rounded-xl bg-emerald-50/70 dark:bg-emerald-900/20 border border-emerald-200/70 dark:border-emerald-800/50">
+              <div className="flex items-center justify-between mb-2">
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-emerald-600">Compatibility</p>
+                  <p className="font-semibold">Two-person pulse</p>
+                </div>
+                {compatResult ? <Badge>{compatResult.score}%</Badge> : null}
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="space-y-1">
+                  <input
+                    type="text"
+                    value={compatA.name}
+                    onChange={(e) => setCompatA({ ...compatA, name: e.target.value })}
+                    className="w-full px-2 py-2 rounded-lg bg-white/80 dark:bg-zinc-800/80 border border-black/10 dark:border-white/10"
+                    placeholder="Name A"
+                  />
+                  <input
+                    type="date"
+                    value={compatA.date}
+                    onChange={(e) => setCompatA({ ...compatA, date: e.target.value })}
+                    className="w-full px-2 py-2 rounded-lg bg-white/80 dark:bg-zinc-800/80 border border-black/10 dark:border-white/10"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <input
+                    type="text"
+                    value={compatB.name}
+                    onChange={(e) => setCompatB({ ...compatB, name: e.target.value })}
+                    className="w-full px-2 py-2 rounded-lg bg-white/80 dark:bg-zinc-800/80 border border-black/10 dark:border-white/10"
+                    placeholder="Name B"
+                  />
+                  <input
+                    type="date"
+                    value={compatB.date}
+                    onChange={(e) => setCompatB({ ...compatB, date: e.target.value })}
+                    className="w-full px-2 py-2 rounded-lg bg-white/80 dark:bg-zinc-800/80 border border-black/10 dark:border-white/10"
+                  />
+                </div>
+              </div>
+              <div className="flex items-center gap-2 mt-2">
+                <Button variant="ghost" onClick={handleCompat}>Check alignment</Button>
+                <span className="text-xs opacity-70">Uses initials + birthdates for a quick pulse.</span>
+              </div>
+              {compatResult ? (
+                <div className="mt-2 text-sm">
+                  <p className="font-semibold">{compatResult.vibe}</p>
+                  <p className="opacity-80">{compatResult.anchor}</p>
+                </div>
+              ) : null}
+            </div>
+          </div>
+
+          <div className="mt-4 p-4 rounded-xl bg-orange-50/70 dark:bg-orange-900/20 border border-orange-200/60 dark:border-orange-800/50">
+            <div className="flex items-center justify-between mb-2">
+              <div>
+                <p className="text-xs uppercase tracking-wide text-orange-600">Timing Calendar</p>
+                <p className="font-semibold">Energy windows</p>
+              </div>
+              <Badge>3-day</Badge>
+            </div>
+            <div className="grid sm:grid-cols-3 gap-3 text-sm">
+              {ENERGY_WINDOWS.map((slot) => (
+                <div key={slot.day} className="p-3 rounded-lg bg-white/70 dark:bg-zinc-800/60 border border-black/5 dark:border-white/10">
+                  <div className="text-xs uppercase tracking-wide opacity-70">{slot.day}</div>
+                  <div className="font-semibold">{slot.focus}</div>
+                  <div className="text-xs opacity-80">{slot.window}</div>
+                  <p className="text-xs mt-1 opacity-80">{slot.cue}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="p-4 rounded-xl bg-sky-50/70 dark:bg-sky-900/30 border border-sky-200/60 dark:border-sky-800/40">
+              <div className="flex items-center justify-between mb-2">
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-sky-600">Calendar</p>
+                  <p className="font-semibold">Energy day check</p>
+                </div>
+                {energyOutcome ? <Badge>{energyOutcome.label}</Badge> : null}
+              </div>
+              <label className="text-xs opacity-70">Pick a date</label>
+              <div className="flex items-center gap-2 mt-1">
+                <input
+                  type="date"
+                  value={energyDate}
+                  onChange={(e) => setEnergyDate(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg bg-white/80 dark:bg-zinc-800/80 border border-black/10 dark:border-white/10 text-sm"
+                />
+                <Button onClick={handleEnergyCalendar} variant="ghost" className="text-xs px-3">Check</Button>
+              </div>
+              {energyOutcome ? (
+                <p className="mt-2 text-sm opacity-80">{energyOutcome.note}</p>
+              ) : (
+                <p className="mt-2 text-xs opacity-70">See if the day leans high-sync, balanced, or recharge.</p>
+              )}
+              {energyAwarded ? <p className="text-xs text-emerald-600 mt-1">+8 XP</p> : null}
+            </div>
+
+            <div className="p-4 rounded-xl bg-purple-50/70 dark:bg-purple-900/30 border border-purple-200/60 dark:border-purple-800/40">
+              <div className="flex items-center justify-between mb-2">
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-purple-600">CueChats</p>
+                  <p className="font-semibold">Timing Q&A</p>
+                </div>
+                {cueReply ? <Badge>Reply</Badge> : null}
+              </div>
+              <label className="text-xs opacity-70">Ask about timing or compatibility</label>
+              <div className="flex gap-2 mt-1">
+                <input
+                  type="text"
+                  value={cueQuestion}
+                  onChange={(e) => setCueQuestion(e.target.value)}
+                  placeholder="e.g., When to launch?"
+                  className="w-full px-3 py-2 rounded-lg bg-white/80 dark:bg-zinc-800/80 border border-black/10 dark:border-white/10 text-sm"
+                />
+                <Button onClick={handleCueChats} variant="ghost" className="text-xs px-3">Ask</Button>
+              </div>
+              {cueReply ? (
+                <p className="mt-2 text-sm opacity-80">{cueReply}</p>
+              ) : (
+                <p className="mt-2 text-xs opacity-70">Get a quick AI-flavored nudge tied to the day’s energy.</p>
+              )}
+              {cueAwarded ? <p className="text-xs text-emerald-600 mt-1">+8 XP</p> : null}
+            </div>
+
+            <div className="p-4 rounded-xl bg-amber-50/70 dark:bg-amber-900/20 border border-amber-200/60 dark:border-amber-800/40">
+              <div className="flex items-center justify-between mb-2">
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-amber-600">Founding Date</p>
+                  <p className="font-semibold">Brand energy check</p>
+                </div>
+                {brandResult ? <Badge>{brandResult.tag}</Badge> : null}
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="space-y-1">
+                  <input
+                    type="text"
+                    value={brandName}
+                    onChange={(e) => setBrandName(e.target.value)}
+                    placeholder="Brand / project"
+                    className="w-full px-3 py-2 rounded-lg bg-white/80 dark:bg-zinc-800/80 border border-black/10 dark:border-white/10 text-sm"
+                  />
+                  <label className="text-[11px] opacity-70 block">Name</label>
+                </div>
+                <div className="space-y-1">
+                  <input
+                    type="date"
+                    value={brandDate}
+                    onChange={(e) => setBrandDate(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg bg-white/80 dark:bg-zinc-800/80 border border-black/10 dark:border-white/10 text-sm"
+                  />
+                  <label className="text-[11px] opacity-70 block">Founding date</label>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 mt-2">
+                <Button onClick={handleBrandCheck} variant="ghost" className="text-xs px-3">Evaluate</Button>
+                {brandResult ? <span className="text-sm font-semibold">{brandResult.score}% fit</span> : null}
+              </div>
+              {brandResult ? (
+                <p className="mt-1 text-xs opacity-80">Tag: {brandResult.tag}. Align launches to high-sync weeks.</p>
+              ) : (
+                <p className="mt-2 text-xs opacity-70">See how a founding date pairs with brand intent.</p>
+              )}
+              {brandAwarded ? <p className="text-xs text-emerald-600 mt-1">+8 XP</p> : null}
+            </div>
+          </div>
+        </Card>
+      </section>
 
         {/* Right column */}
         <aside className="space-y-6">
