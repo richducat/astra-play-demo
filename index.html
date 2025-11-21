@@ -255,6 +255,13 @@
         const [brandResult, setBrandResult] = useState(null);
         const [brandAwarded, setBrandAwarded] = useState(false);
 
+        // Landing snippet demo state (one-time previews)
+        const [landingEnergyDate, setLandingEnergyDate] = useState("");
+        const [landingEnergyResult, setLandingEnergyResult] = useState(null);
+        const [landingCompatInput, setLandingCompatInput] = useState({ brand: "", date: "" });
+        const [landingCompatResult, setLandingCompatResult] = useState(null);
+        const [freeOutputs, setFreeOutputs] = useState({ energyUsed: false, compatUsed: false });
+
         // Mini-game: Decision Duel
         const scenario = useMemo(() => DAILY_SCENARIOS[Math.floor(Math.random()*DAILY_SCENARIOS.length)], []);
         const [choice, setChoice] = useState(null);
@@ -440,6 +447,28 @@
           }
         };
 
+        const runLandingEnergy = () => {
+          const result = evaluateEnergyDate(landingEnergyDate);
+          if (!result) return;
+          if (freeOutputs.energyUsed) {
+            setLandingEnergyResult({ locked: true, note: "One free window preview used. Sign up to unlock daily energy." });
+            return;
+          }
+          setLandingEnergyResult({ locked: false, ...result });
+          setFreeOutputs((prev) => ({ ...prev, energyUsed: true }));
+        };
+
+        const runLandingCompat = () => {
+          const result = evaluateBrandDate(landingCompatInput.brand || "Brand", landingCompatInput.date);
+          if (!result) return;
+          if (freeOutputs.compatUsed) {
+            setLandingCompatResult({ locked: true, message: "Free compatibility sample used. Start Basic to keep matching." });
+            return;
+          }
+          setLandingCompatResult({ locked: false, ...result });
+          setFreeOutputs((prev) => ({ ...prev, compatUsed: true }));
+        };
+
         const addFriendToTree = () => {
           if (!newFriend.name || !newFriend.birthday || !newFriend.role)
             return alert('Add a name, birthday, and role to invite.');
@@ -549,7 +578,148 @@
                 </div>
               </div>
             </header>
-      
+
+            {/* Marketing hero (snippet 1) */}
+            <section className="max-w-6xl mx-auto px-4 py-10 space-y-6">
+              <div className="grid lg:grid-cols-2 gap-8 items-center">
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 text-sm font-semibold text-indigo-600">
+                    <span className="text-lg">✨</span>
+                    <span>Timing &gt; luck</span>
+                  </div>
+                  <h1 className="text-3xl md:text-4xl font-black leading-tight">Make better moves on the right days.</h1>
+                  <p className="text-lg text-zinc-700 dark:text-zinc-200">
+                    Astra maps your high-probability windows for money, relationships, and big decisions—using your birth imprint + astrology.
+                  </p>
+                  <div className="flex flex-wrap gap-3">
+                    <Button className="text-sm">$2.96/mo — Start Basic</Button>
+                    <Button variant="ghost" className="text-sm">Compare plans</Button>
+                  </div>
+                  <p className="text-sm opacity-70">Cancel anytime. Not a horoscope—decision timing + compatibility.</p>
+                  <div className="flex items-center gap-4 text-sm">
+                    <div className="font-semibold">⭐️⭐️⭐️⭐️⭐️ 4.8</div>
+                    <span className="opacity-70">3,000+ reviews · 200,000+ members</span>
+                  </div>
+                </div>
+                <Card className="bg-gradient-to-br from-indigo-50 to-white dark:from-indigo-950/60 dark:to-zinc-900 border-indigo-100 dark:border-indigo-900/40">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs uppercase tracking-wide text-indigo-600">Today’s Energy</p>
+                      <h3 className="text-2xl font-extrabold">Score</h3>
+                    </div>
+                    <Badge>Demo</Badge>
+                  </div>
+                  <div className="mt-4 flex items-baseline gap-3">
+                    <div className="text-5xl font-black text-indigo-600">72</div>
+                    <div className="text-sm opacity-80">Favorable</div>
+                  </div>
+                  <p className="mt-2 text-sm opacity-80">Best moves: outreach • purchases • first dates</p>
+                  <div className="mt-4 grid sm:grid-cols-2 gap-3 text-sm">
+                    <div className="p-3 rounded-xl bg-white/70 dark:bg-zinc-800/70 border border-black/5 dark:border-white/10">
+                      <div className="text-xs uppercase tracking-wide opacity-70">Energy Calendar</div>
+                      <p className="font-semibold">See your favorable windows by day.</p>
+                      <p className="text-xs opacity-70">Daily favorability score + best moves.</p>
+                    </div>
+                    <div className="p-3 rounded-xl bg-white/70 dark:bg-zinc-800/70 border border-black/5 dark:border-white/10">
+                      <div className="text-xs uppercase tracking-wide opacity-70">Compatibility (Demo)</div>
+                      <p className="font-semibold">Check a brand or person in seconds.</p>
+                      <p className="text-xs opacity-70">One free preview before signup.</p>
+                    </div>
+                  </div>
+                </Card>
+              </div>
+
+              <div className="grid lg:grid-cols-2 gap-6">
+                <Card className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs uppercase tracking-wide text-indigo-600">Energy Calendar preview</p>
+                      <h3 className="text-lg font-bold">One-time demo output</h3>
+                    </div>
+                    <Badge>{freeOutputs.energyUsed ? 'Used' : 'Free'}</Badge>
+                  </div>
+                  <div className="grid sm:grid-cols-3 gap-3 text-sm">
+                    <input
+                      type="date"
+                      value={landingEnergyDate}
+                      onChange={(e) => setLandingEnergyDate(e.target.value)}
+                      className="px-3 py-2 rounded-xl bg-white/80 dark:bg-zinc-800/80 border border-black/10 dark:border-white/10"
+                    />
+                    <Button onClick={runLandingEnergy} className="sm:col-span-2">Get my window</Button>
+                  </div>
+                  {landingEnergyResult ? (
+                    landingEnergyResult.locked ? (
+                      <p className="text-sm text-amber-500">{landingEnergyResult.note}</p>
+                    ) : (
+                      <div className="p-3 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 text-sm">
+                        <div className="font-semibold">{landingEnergyResult.label}</div>
+                        <p className="opacity-80">{landingEnergyResult.note}</p>
+                        <p className="mt-2 text-xs opacity-70">Enjoyed it? Start Basic to unlock daily timing.</p>
+                      </div>
+                    )
+                  ) : (
+                    <p className="text-xs opacity-70">Pick a date to see a sample timing cue.</p>
+                  )}
+                </Card>
+
+                <Card className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs uppercase tracking-wide text-indigo-600">Compatibility (Demo)</p>
+                      <h3 className="text-lg font-bold">Try one match for free</h3>
+                    </div>
+                    <Badge>{freeOutputs.compatUsed ? 'Used' : 'Free'}</Badge>
+                  </div>
+                  <div className="grid sm:grid-cols-3 gap-3 text-sm">
+                    <input
+                      value={landingCompatInput.brand}
+                      onChange={(e) => setLandingCompatInput({ ...landingCompatInput, brand: e.target.value })}
+                      placeholder="Brand or person"
+                      className="px-3 py-2 rounded-xl bg-white/80 dark:bg-zinc-800/80 border border-black/10 dark:border-white/10"
+                    />
+                    <input
+                      type="date"
+                      value={landingCompatInput.date}
+                      onChange={(e) => setLandingCompatInput({ ...landingCompatInput, date: e.target.value })}
+                      className="px-3 py-2 rounded-xl bg-white/80 dark:bg-zinc-800/80 border border-black/10 dark:border-white/10"
+                    />
+                    <Button onClick={runLandingCompat}>Check</Button>
+                  </div>
+                  {landingCompatResult ? (
+                    landingCompatResult.locked ? (
+                      <p className="text-sm text-amber-500">{landingCompatResult.message}</p>
+                    ) : (
+                      <div className="p-3 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 text-sm">
+                        <div className="text-3xl font-black text-indigo-700 dark:text-indigo-200">{landingCompatResult.score}</div>
+                        <p className="font-semibold">{landingCompatResult.tag}</p>
+                        <p className="text-xs opacity-70 mt-1">Upgrade to Astra+ for full compatibility reports.</p>
+                      </div>
+                    )
+                  ) : (
+                    <p className="text-xs opacity-70">Enter any brand to preview a demo match result.</p>
+                  )}
+                </Card>
+              </div>
+
+              <div className="grid md:grid-cols-3 gap-4 text-sm">
+                <Card>
+                  <div className="text-xs uppercase tracking-wide opacity-70">People & Brand Match</div>
+                  <p className="font-semibold mt-1">Check chemistry and communication patterns.</p>
+                  <p className="text-xs opacity-70 mt-1">See how your energy lines up with partners, teams, cities, and 22,000+ brands.</p>
+                </Card>
+                <Card>
+                  <div className="text-xs uppercase tracking-wide opacity-70">AstraChats (AI)</div>
+                  <p className="font-semibold mt-1">Ask timing and compatibility questions.</p>
+                  <p className="text-xs opacity-70 mt-1">Astra-backed answers with numerology + astrology combined.</p>
+                </Card>
+                <Card>
+                  <div className="text-xs uppercase tracking-wide opacity-70">Simple plans</div>
+                  <p className="font-semibold mt-1">Starter • Astra+ • AstraChats</p>
+                  <p className="text-xs opacity-70 mt-1">Cancel anytime. All payments build toward Lifetime status.</p>
+                </Card>
+              </div>
+            </section>
+
                   <main className="max-w-6xl mx-auto px-4 py-6 grid lg:grid-cols-3 gap-6">
                     {/* Left column */}
                     <section className="lg:col-span-2 space-y-6">
