@@ -14,10 +14,12 @@
   </head>
   <body class="dark:bg-zinc-950 dark:text-zinc-100">
     <div id="root"></div>
-    <script type="text/babel">
-            // Code imported from astra_play_gamified_astrology_demo_preview.jsx
-      
-      // --- Lightweight UI helpers (no external deps) ---
+      <script type="text/babel" data-presets="env,react">
+              // Code imported from astra_play_gamified_astrology_demo_preview.jsx
+
+        const { useState, useEffect, useMemo } = React;
+
+        // --- Lightweight UI helpers (no external deps) ---
       const Card = ({ children, className = "" }) => (
         <div className={`rounded-2xl shadow-lg border border-black/5 bg-white/80 dark:bg-zinc-900/80 backdrop-blur p-5 ${className}`}>{children}</div>
       );
@@ -202,6 +204,16 @@
         const [showOnboarding, setShowOnboarding] = useState(true);
         const [friendTree, setFriendTree] = useState([]);
         const [newFriend, setNewFriend] = useState({ name: "", birthday: "", role: "" });
+        const [energyDate, setEnergyDate] = useState("");
+        const [energyOutcome, setEnergyOutcome] = useState(null);
+        const [energyAwarded, setEnergyAwarded] = useState(false);
+        const [cueQuestion, setCueQuestion] = useState("");
+        const [cueReply, setCueReply] = useState(null);
+        const [cueAwarded, setCueAwarded] = useState(false);
+        const [brandName, setBrandName] = useState("");
+        const [brandDate, setBrandDate] = useState("");
+        const [brandResult, setBrandResult] = useState(null);
+        const [brandAwarded, setBrandAwarded] = useState(false);
       
         // Check-in state
         const [mood, setMood] = useState(null); // low/ok/high
@@ -390,6 +402,71 @@
           const score = clamp(Math.round((reduceNumber(base) / 22) * 100), 5, 99);
           const tag = score >= 75 ? "Launch-forward" : score >= 55 ? "Balanced" : "Iterate";
           return { score, tag };
+        };
+
+        // Personalize profile + side tools
+        const personalizeProfile = () => {
+          if (!profile.birthdate) return;
+
+          const astro = getAstroSign(profile.birthdate) || "Sagittarius";
+          const chinese = getChineseZodiac(profile.birthdate) || "Dragon";
+          const lifePath = computeLifePath(profile.birthdate) || lifePathNumber;
+          const luckyNumbers = lifePath
+            ? [lifePath, clamp(lifePath + (profile.name?.length || 3), 1, 99), clamp(lifePath * 2, 1, 99)]
+            : [3, 7, 9];
+          const unluckyNumbers = lifePath ? [4, 13, clamp(lifePath + 5, 1, 99)] : [4, 8, 13];
+          const compat = generateCompatDates(profile.birthdate) || {
+            love: ["Feb 14", "Mar 3", "Aug 8"],
+            business: ["Jan 10", "May 5", "Sep 1"],
+            friend: ["Jun 6", "Oct 10", "Dec 12"],
+          };
+
+          setLifePathNumber(lifePath || null);
+          setProfileInsights({
+            astroSign: astro,
+            chineseZodiac: chinese,
+            lifePath: lifePath || null,
+            luckyNumbers,
+            unluckyNumbers,
+            compat,
+            chart: `${astro} sun • ${chinese} year — focus on ${luckyNumbers[0]} today.`,
+          });
+          setShowOnboarding(false);
+          completeQuest("q2");
+        };
+
+        const addFriendToTree = () => {
+          if (!newFriend.name.trim() || !newFriend.birthday) return;
+          setFriendTree((prev) => [...prev, newFriend]);
+          setNewFriend({ name: "", birthday: "", role: "" });
+        };
+
+        const handleEnergyCalendar = () => {
+          const outcome = evaluateEnergyDate(energyDate);
+          setEnergyOutcome(outcome);
+          if (outcome && !energyAwarded) {
+            grantXP(8);
+            completeQuest("q5");
+            setEnergyAwarded(true);
+          }
+        };
+
+        const handleCueChats = () => {
+          const reply = evaluateCueChats(cueQuestion);
+          setCueReply(reply);
+          if (reply && !cueAwarded) {
+            grantXP(8);
+            setCueAwarded(true);
+          }
+        };
+
+        const handleBrandCheck = () => {
+          const result = evaluateBrandDate(brandName, brandDate);
+          setBrandResult(result);
+          if (result && !brandAwarded) {
+            grantXP(8);
+            setBrandAwarded(true);
+          }
         };
 
         // House leaderboard (demo)
