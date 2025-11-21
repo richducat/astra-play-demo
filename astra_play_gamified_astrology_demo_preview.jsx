@@ -83,6 +83,68 @@ const ENERGY_WINDOWS = [
 
 // --- Utilities ---
 const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
+const getAstroSign = (dateStr) => {
+  const date = new Date(dateStr);
+  if (Number.isNaN(date.getTime())) return null;
+  const month = date.getUTCMonth() + 1;
+  const day = date.getUTCDate();
+  const boundaries = [
+    [1, 20, "Capricorn"],
+    [2, 19, "Aquarius"],
+    [3, 21, "Pisces"],
+    [4, 20, "Aries"],
+    [5, 21, "Taurus"],
+    [6, 21, "Gemini"],
+    [7, 23, "Cancer"],
+    [8, 23, "Leo"],
+    [9, 23, "Virgo"],
+    [10, 23, "Libra"],
+    [11, 22, "Scorpio"],
+    [12, 22, "Sagittarius"],
+    [12, 32, "Capricorn"],
+  ];
+  const match = boundaries.find(([, cutoff, sign], idx) => {
+    const currentMonth = idx + 1;
+    return (month === currentMonth && day < cutoff) || (month === currentMonth + 1 && day < boundaries[idx + 1]?.[1]);
+  });
+  return match ? match[2] : "Sagittarius";
+};
+
+const getChineseZodiac = (dateStr) => {
+  const date = new Date(dateStr);
+  if (Number.isNaN(date.getTime())) return null;
+  const animals = [
+    "Rat",
+    "Ox",
+    "Tiger",
+    "Rabbit",
+    "Dragon",
+    "Snake",
+    "Horse",
+    "Goat",
+    "Monkey",
+    "Rooster",
+    "Dog",
+    "Pig",
+  ];
+  const year = date.getUTCFullYear();
+  return animals[(year - 4) % 12];
+};
+
+const formatMonthDay = (date) =>
+  date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+
+const generateCompatDates = (dateStr) => {
+  const baseDate = new Date(dateStr);
+  if (Number.isNaN(baseDate.getTime())) return null;
+  const offsets = [5, 13, 21, 34, 55];
+  const builds = (shift) => formatMonthDay(new Date(baseDate.getTime() + shift * 24 * 60 * 60 * 1000));
+  return {
+    love: [builds(offsets[1]), builds(offsets[3]), builds(offsets[0])],
+    business: [builds(offsets[2]), builds(offsets[4]), builds(offsets[0])],
+    friend: [builds(offsets[0]), builds(offsets[1]), builds(offsets[2])],
+  };
+};
 
 export default function AstraPlayDemo() {
   // Theme
@@ -97,6 +159,17 @@ export default function AstraPlayDemo() {
   const [house, setHouse] = useState(null);
   const [seasonDaysLeft] = useState(20);
   const [stars, setStars] = useState(12); // soft currency
+  const [profile, setProfile] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    birthdate: "",
+    location: "",
+  });
+  const [profileInsights, setProfileInsights] = useState(null);
+  const [showOnboarding, setShowOnboarding] = useState(true);
+  const [friendTree, setFriendTree] = useState([]);
+  const [newFriend, setNewFriend] = useState({ name: "", birthday: "", role: "" });
 
   // Check-in state
   const [mood, setMood] = useState(null); // low/ok/high
@@ -124,18 +197,92 @@ export default function AstraPlayDemo() {
     { id: 'q1', label: 'Complete daily check‑in', done: false, xp: 20 },
     { id: 'q2', label: 'Read your guidance brief', done: false, xp: 15 },
     { id: 'q3', label: 'Play 1 mini‑game', done: false, xp: 25 },
+    { id: 'q4', label: 'Invite 1 person to your tree', done: false, xp: 15 },
+    { id: 'q5', label: 'Run the Energy Calendar for today', done: false, xp: 10 },
   ]);
 
   // Derived guidance stub
   const guidance = useMemo(() => {
     const tags = [];
+    if (profileInsights?.astroSign) tags.push(`Move like a ${profileInsights.astroSign}: start bold, finish grounded.`);
+    if (profileInsights?.lifePath) tags.push(`Life Path ${profileInsights.lifePath}: align actions to your core pattern.`);
     if (mood === 'high') tags.push('Ride confidence early.');
     if (mood === 'low') tags.push('Set a tiny win before noon.');
     if (focus === 'high') tags.push('Deep work block: 45–60 min.');
     if (connection === 'high') tags.push('Send a 2‑line check‑in to a friend.');
     if (tags.length === 0) tags.push('Light touch today. One meaningful action > many half‑starts.');
-    return tags.slice(0,3);
-  }, [mood, focus, connection]);
+    return tags.slice(0,4);
+  }, [mood, focus, connection, profileInsights]);
+
+  // Helpers for calculators
+  const reduceNumber = (value) => {
+    let sum = value;
+    while (sum > 22 || (sum > 9 && sum !== 11 && sum !== 22)) {
+      sum = sum.toString().split('').reduce((acc, digit) => acc + parseInt(digit, 10), 0);
+    }
+    return sum;
+  };
+
+  const computeLifePath = (dateStr) => {
+    const digits = dateStr.replace(/\D/g, '');
+    if (digits.length < 8) return null;
+    const total = digits.split('').reduce((acc, d) => acc + parseInt(d, 10), 0);
+    return reduceNumber(total);
+  };
+
+  const computeCompatibility = (a, b) => {
+    const names = `${a.name}${b.name}`.toLowerCase();
+    const birthdays = `${a.date}${b.date}`.replace(/\D/g, '');
+    if (birthdays.length < 8) return null;
+    const nameScore = names.split('').reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
+    const dateScore = birthdays.split('').reduce((acc, d) => acc + parseInt(d, 10), 0);
+    const base = reduceNumber((nameScore + dateScore) % 99);
+    const normalized = clamp(Math.round((base / 22) * 100), 1, 99);
+    const vibe =
+      normalized >= 80
+        ? 'High sync—greenlight shared moves.'
+        : normalized >= 60
+        ? 'Supportive—align on timing and clarify roles.'
+        : normalized >= 40
+        ? 'Neutral—start small and iterate together.'
+        : 'Edgy—set guardrails and keep it light.';
+    const anchor = normalized >= 60 ? 'Double down on shared wins.' : 'Keep scope small & playful.';
+    return { score: normalized, vibe, anchor };
+  };
+
+  const generateProfileInsights = (payload) => {
+    const { birthdate, name, location } = payload;
+    const lifePath = computeLifePath(birthdate);
+    const astroSign = getAstroSign(birthdate);
+    const chineseZodiac = getChineseZodiac(birthdate);
+    const luckyNumbers = lifePath ? [lifePath, ((lifePath % 9) || 9), Math.max(1, (lifePath + 3) % 9)] : [7, 3, 9];
+    const unluckyNumbers = lifePath ? [Math.max(1, (lifePath + 4) % 9), Math.max(1, (lifePath + 6) % 9)] : [4, 8];
+    const compat = generateCompatDates(birthdate);
+    const chart = astroSign
+      ? `${name || 'You'} carry ${astroSign} sun momentum with a ${chineseZodiac || 'mystery'} year imprint. Anchor decisions in ${location || 'your city'} during your ${compat?.business?.[0] || 'next high window'} surge.`
+      : 'Set your birth details to unlock a chart note.';
+    return { lifePath, astroSign, chineseZodiac, luckyNumbers, unluckyNumbers, compat, chart };
+  };
+
+  const personalizeProfile = () => {
+    if (!profile.name || !profile.birthdate || !profile.email) return alert('Add name, email, and birth date to personalize.');
+    const insights = generateProfileInsights(profile);
+    setProfileInsights(insights);
+    setBirthDate(profile.birthdate);
+    setLifePathNumber(insights.lifePath);
+    setShowOnboarding(false);
+    if (insights.lifePath && !lifePathAwarded) {
+      grantXP(15);
+      setLifePathAwarded(true);
+    }
+    if (insights.compat) {
+      setFriendTree([
+        { name: 'Muse', birthday: insights.compat.love[0], role: 'Love match' },
+        { name: 'Dealflow', birthday: insights.compat.business[0], role: 'Business partner' },
+        { name: 'Kindred', birthday: insights.compat.friend[0], role: 'Best friend' },
+      ]);
+    }
+  };
 
   // Helpers for calculators
   const reduceNumber = (value) => {
@@ -304,7 +451,11 @@ export default function AstraPlayDemo() {
             <div className="h-9 w-9 rounded-xl bg-indigo-600 grid place-items-center text-white font-black">A</div>
             <div>
               <div className="font-extrabold tracking-tight text-lg">Astra Play</div>
-              <div className="text-xs opacity-70">Daily cosmic game • Season: Sagittarius</div>
+              <div className="text-xs opacity-70">
+                {profile.name
+                  ? `${profile.name} • ${profileInsights?.astroSign || 'Set your sign'} • LP ${lifePathNumber || '?'}`
+                  : 'Daily cosmic game • Season: Sagittarius'}
+              </div>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -318,15 +469,85 @@ export default function AstraPlayDemo() {
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-4 py-6 grid lg:grid-cols-3 gap-6">
-        {/* Left column */}
-        <section className="lg:col-span-2 space-y-6">
+            <main className="max-w-6xl mx-auto px-4 py-6 grid lg:grid-cols-3 gap-6">
+              {/* Left column */}
+              <section className="lg:col-span-2 space-y-6">
+                {/* Onboarding + personalization */}
+                <Card className="relative overflow-hidden border-indigo-100 dark:border-indigo-900/40">
+                  <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                    <div>
+                      <p className="text-xs uppercase tracking-wide text-indigo-600">Welcome</p>
+                      <h2 className="text-xl font-bold">Tune Astra to you</h2>
+                      <p className="text-sm opacity-80">
+                        Set your details once to unlock a personalized home, daily check-ins, and social tree suggestions.
+                      </p>
+                    </div>
+                    <Badge>{showOnboarding ? "New" : "Personalized"}</Badge>
+                  </div>
+                  <div className="mt-4 grid sm:grid-cols-2 lg:grid-cols-3 gap-3 text-sm">
+                    <div className="space-y-1">
+                      <label className="text-xs opacity-70">Name</label>
+                      <input
+                        value={profile.name}
+                        onChange={(e) => setProfile({ ...profile, name: e.target.value })}
+                        className="w-full px-3 py-2 rounded-lg bg-white/80 dark:bg-zinc-800/80 border border-black/10 dark:border-white/10"
+                        placeholder="Your name"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs opacity-70">Email</label>
+                      <input
+                        value={profile.email}
+                        onChange={(e) => setProfile({ ...profile, email: e.target.value })}
+                        className="w-full px-3 py-2 rounded-lg bg-white/80 dark:bg-zinc-800/80 border border-black/10 dark:border-white/10"
+                        placeholder="you@email.com"
+                        type="email"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs opacity-70">Phone</label>
+                      <input
+                        value={profile.phone}
+                        onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
+                        className="w-full px-3 py-2 rounded-lg bg-white/80 dark:bg-zinc-800/80 border border-black/10 dark:border-white/10"
+                        placeholder="(555)"
+                        type="tel"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs opacity-70">Birth date</label>
+                      <input
+                        value={profile.birthdate}
+                        onChange={(e) => setProfile({ ...profile, birthdate: e.target.value })}
+                        className="w-full px-3 py-2 rounded-lg bg-white/80 dark:bg-zinc-800/80 border border-black/10 dark:border-white/10"
+                        type="date"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs opacity-70">Location</label>
+                      <input
+                        value={profile.location}
+                        onChange={(e) => setProfile({ ...profile, location: e.target.value })}
+                        className="w-full px-3 py-2 rounded-lg bg-white/80 dark:bg-zinc-800/80 border border-black/10 dark:border-white/10"
+                        placeholder="City / TZ"
+                      />
+                    </div>
+                    <div className="space-y-1 flex items-end">
+                      <Button onClick={personalizeProfile} className="w-full">Generate my cosmic brief</Button>
+                    </div>
+                  </div>
+                  {!showOnboarding && profileInsights ? (
+                    <p className="mt-3 text-xs opacity-80">Saved! {profile.name || 'Explorer'}, we tuned your feed to {profileInsights.astroSign || 'your sign'} and Life Path {profileInsights.lifePath || '?'}.</p>
+                  ) : (
+                    <p className="mt-3 text-xs opacity-70">We only store this locally for the demo. Add details to unlock the full home experience.</p>
+                  )}
+                </Card>
           {/* Season banner */}
           <Card className="relative overflow-hidden">
             <div className="flex items-center justify-between">
               <div>
                 <div className="text-xs uppercase tracking-wider text-indigo-600">Season Pass</div>
-                <h2 className="text-2xl font-bold">Sagittarius — Aim True</h2>
+                <h2 className="text-2xl font-bold">{profileInsights?.astroSign || 'Sagittarius'} — Aim True</h2>
                 <p className="text-sm opacity-80">{seasonDaysLeft} days left • Earn cosmetics & streak freeze tokens</p>
               </div>
               <div className="hidden md:block w-48 h-24 bg-indigo-100/60 dark:bg-indigo-900/30 rounded-xl rotate-6" />
@@ -335,6 +556,43 @@ export default function AstraPlayDemo() {
               <div className="h-full bg-indigo-600" style={{ width: `${clamp((100-xp)/1.2, 10, 100)}%`}} />
             </div>
           </Card>
+
+          {!showOnboarding && profileInsights ? (
+            <Card className="bg-gradient-to-r from-indigo-50 to-white dark:from-indigo-950/60 dark:to-zinc-900">
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-indigo-600">Your cosmic brief</p>
+                  <h3 className="text-xl font-bold">Calibrated for {profile.name || 'you'}</h3>
+                  <p className="text-sm opacity-80">Daily check-ins, quests, and tools now lean on your sign + Life Path.</p>
+                </div>
+                <Button variant="ghost" onClick={() => setShowOnboarding(true)} className="text-xs">Edit</Button>
+              </div>
+              <div className="grid sm:grid-cols-2 gap-3 text-sm">
+                <div className="space-y-1 p-3 rounded-xl bg-white/80 dark:bg-zinc-800/60 border border-black/5 dark:border-white/10">
+                  <div className="text-xs opacity-70">Life Path</div>
+                  <div className="text-2xl font-black text-indigo-700 dark:text-indigo-200">{profileInsights.lifePath || '?'}</div>
+                  <p className="text-xs opacity-80">{LIFE_PATH_BLURBS[profileInsights.lifePath] || 'Add your birth date to compute your path.'}</p>
+                </div>
+                <div className="space-y-1 p-3 rounded-xl bg-white/80 dark:bg-zinc-800/60 border border-black/5 dark:border-white/10">
+                  <div className="text-xs opacity-70">Signs</div>
+                  <div className="font-semibold">{profileInsights.astroSign || '—'} • {profileInsights.chineseZodiac || '—'}</div>
+                  <p className="text-xs opacity-80">Lucky: {profileInsights.luckyNumbers.join(', ')} • Unlucky: {profileInsights.unluckyNumbers.join(', ')}</p>
+                </div>
+                <div className="space-y-1 p-3 rounded-xl bg-white/80 dark:bg-zinc-800/60 border border-black/5 dark:border-white/10">
+                  <div className="text-xs uppercase tracking-wide opacity-70">Top birthdays</div>
+                  <ul className="text-xs space-y-1">
+                    <li>❤️ Love: {profileInsights.compat?.love?.join(', ')}</li>
+                    <li>💼 Business: {profileInsights.compat?.business?.join(', ')}</li>
+                    <li>🤝 Best friend: {profileInsights.compat?.friend?.join(', ')}</li>
+                  </ul>
+                </div>
+                <div className="space-y-1 p-3 rounded-xl bg-white/80 dark:bg-zinc-800/60 border border-black/5 dark:border-white/10">
+                  <div className="text-xs uppercase tracking-wide opacity-70">Birth chart micro-read</div>
+                  <p className="text-sm opacity-80 leading-relaxed">{profileInsights.chart}</p>
+                </div>
+              </div>
+            </Card>
+          ) : null}
 
           {/* Check-in */}
           <Card>
@@ -347,11 +605,21 @@ export default function AstraPlayDemo() {
               <CheckItem label="Focus" value={focus} setValue={setFocus} />
               <CheckItem label="Connection" value={connection} setValue={setConnection} />
             </div>
-            <div className="flex items-center gap-3 mt-4">
-              <Button onClick={handleCheckin} disabled={!checkinComplete || checkinAwarded}>Complete check‑in</Button>
-              <span className="text-sm opacity-70">Takes 10s • Helps tune your brief</span>
+          <div className="flex items-center gap-3 mt-4">
+            <Button onClick={handleCheckin} disabled={!checkinComplete || checkinAwarded}>Complete check‑in</Button>
+            <span className="text-sm opacity-70">Takes 10s • Helps tune your brief</span>
+          </div>
+          {profileInsights ? (
+            <div className="mt-3 text-xs opacity-80 space-y-1">
+              <p>Today is tuned for {profile.name || 'you'} as a {profileInsights.astroSign || '—'} with Life Path {profileInsights.lifePath || '?'}. Pair your check-in with:</p>
+              <ul className="list-disc pl-4 space-y-1">
+                <li>Run the Energy Calendar to pick your best outreach window.</li>
+                <li>Ask CueChats about a decision tied to your lucky numbers {profileInsights.luckyNumbers.join(', ')}.</li>
+                <li>Invite a {profileInsights.compat?.friend?.[0] || 'best-match'} birthday into your friend tree to play Decision Duel.</li>
+              </ul>
             </div>
-          </Card>
+          ) : null}
+        </Card>
 
           {/* Guidance */}
           <Card>
@@ -530,6 +798,36 @@ export default function AstraPlayDemo() {
                 ))}
               </div>
             )}
+          </Card>
+
+          <Card>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-bold">Friend tree</h3>
+              <Badge>{profileInsights?.lifePath ? `LP ${profileInsights.lifePath}` : 'Invite'}</Badge>
+            </div>
+            <p className="text-sm opacity-80 mb-2">Build a playful map of friends, family, and new people you meet by Life Path and birthday.</p>
+            <ul className="space-y-2 text-sm">
+              {friendTree.length ? friendTree.map((f, idx) => (
+                <li key={`${f.name}-${idx}`} className="flex items-center justify-between rounded-lg bg-black/5 dark:bg-white/5 px-3 py-2">
+                  <div>
+                    <div className="font-semibold">{f.name} • {f.role}</div>
+                    <div className="text-xs opacity-70">Birthday: {f.birthday}</div>
+                  </div>
+                  <span className="text-xs opacity-70">Invite to duel</span>
+                </li>
+              )) : <li className="text-xs opacity-70">Add someone with a great birthday match to start your tree.</li>}
+            </ul>
+            <div className="grid grid-cols-3 gap-2 text-xs mt-3">
+              <input value={newFriend.name} onChange={(e) => setNewFriend({ ...newFriend, name: e.target.value })} placeholder="Name" className="px-2 py-2 rounded-lg bg-white/80 dark:bg-zinc-800/80 border border-black/10 dark:border-white/10" />
+              <input value={newFriend.birthday} onChange={(e) => setNewFriend({ ...newFriend, birthday: e.target.value })} type="date" className="px-2 py-2 rounded-lg bg-white/80 dark:bg-zinc-800/80 border border-black/10 dark:border-white/10" />
+              <input value={newFriend.role} onChange={(e) => setNewFriend({ ...newFriend, role: e.target.value })} placeholder="Role" className="px-2 py-2 rounded-lg bg-white/80 dark:bg-zinc-800/80 border border-black/10 dark:border-white/10" />
+            </div>
+            <div className="flex items-center justify-between mt-2">
+              <Button variant="ghost" onClick={addFriendToTree} className="text-xs px-3">Add to tree</Button>
+              {profileInsights?.compat ? (
+                <span className="text-[11px] opacity-70">Try inviting birthdays: {profileInsights.compat.friend?.slice(0,2).join(', ')}</span>
+              ) : null}
+            </div>
           </Card>
 
           {/* Quests */}
