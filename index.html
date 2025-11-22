@@ -230,11 +230,44 @@
           phone: "",
           birthdate: "",
           location: "",
+          intent: "",
         });
+        const [onboardingStep, setOnboardingStep] = useState(0);
         const [profileInsights, setProfileInsights] = useState(null);
         const [showOnboarding, setShowOnboarding] = useState(true);
         const [friendTree, setFriendTree] = useState([]);
         const [newFriend, setNewFriend] = useState({ name: "", birthday: "", role: "" });
+
+        const onboardingSteps = [
+          {
+            id: 'focus',
+            label: 'Priority',
+            title: 'What should Astra optimize first?',
+            helper: 'We use this to anchor your timing nudges and quests.',
+            options: ['Money & work', 'Love & connection', 'Clarity & rhythm'],
+          },
+          {
+            id: 'identity',
+            label: 'Basics',
+            title: 'Share your essentials',
+            helper: 'This powers your account tile and sends your brief.',
+          },
+          {
+            id: 'timing',
+            label: 'Birth data',
+            title: 'When and where were you born?',
+            helper: 'Unlocks sign, Life Path, and compatibility seeding.',
+          },
+          {
+            id: 'connect',
+            label: 'Alerts',
+            title: 'Where should we send timing alerts?',
+            helper: 'Add a phone or email for quick check-ins.',
+          },
+        ];
+
+        const onboardingProgress = Math.round(((onboardingStep + 1) / onboardingSteps.length) * 100);
+        const currentOnboardingStep = onboardingSteps[onboardingStep];
       
         // Check-in state
         const [mood, setMood] = useState(null); // low/ok/high
@@ -394,6 +427,12 @@
             return clamp(total, 0, 100);
           });
         };
+
+        const goToOnboardingStep = (index) =>
+          setOnboardingStep(clamp(index, 0, onboardingSteps.length - 1));
+        const nextOnboardingStep = () => goToOnboardingStep(onboardingStep + 1);
+        const prevOnboardingStep = () => goToOnboardingStep(onboardingStep - 1);
+        const isFinalOnboardingStep = onboardingStep === onboardingSteps.length - 1;
 
         const personalizeProfile = () => {
           if (!profile.name || !profile.birthdate || !profile.email)
@@ -707,68 +746,179 @@
                     <section className="lg:col-span-2 space-y-6">
                       {/* Onboarding + personalization */}
                       <Card className="relative overflow-hidden border-indigo-100 dark:border-indigo-900/40">
-                        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                          <div>
-                            <p className="text-xs uppercase tracking-wide text-indigo-600">Welcome</p>
+                        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-indigo-600">
+                              <span>Welcome</span>
+                              <Badge>{showOnboarding ? "New" : "Personalized"}</Badge>
+                            </div>
                             <h2 className="text-xl font-bold">Tune Astra to you</h2>
                             <p className="text-sm opacity-80">
-                              Set your details once to unlock a personalized home, daily check-ins, and social tree suggestions.
+                              Guided quiz flow inspired by BestMobileVPN—tap through, pick a vibe, and we’ll calibrate your daily brief.
                             </p>
                           </div>
-                          <Badge>{showOnboarding ? "New" : "Personalized"}</Badge>
-                        </div>
-                        <div className="mt-4 grid sm:grid-cols-2 lg:grid-cols-3 gap-3 text-sm">
-                          <div className="space-y-1">
-                            <label className="text-xs opacity-70">Name</label>
-                            <input
-                              value={profile.name}
-                              onChange={(e) => setProfile({ ...profile, name: e.target.value })}
-                              className="w-full px-3 py-2 rounded-lg bg-white/80 dark:bg-zinc-800/80 border border-black/10 dark:border-white/10"
-                              placeholder="Your name"
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <label className="text-xs opacity-70">Email</label>
-                            <input
-                              value={profile.email}
-                              onChange={(e) => setProfile({ ...profile, email: e.target.value })}
-                              className="w-full px-3 py-2 rounded-lg bg-white/80 dark:bg-zinc-800/80 border border-black/10 dark:border-white/10"
-                              placeholder="you@email.com"
-                              type="email"
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <label className="text-xs opacity-70">Phone</label>
-                            <input
-                              value={profile.phone}
-                              onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
-                              className="w-full px-3 py-2 rounded-lg bg-white/80 dark:bg-zinc-800/80 border border-black/10 dark:border-white/10"
-                              placeholder="(555)"
-                              type="tel"
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <label className="text-xs opacity-70">Birth date</label>
-                            <input
-                              value={profile.birthdate}
-                              onChange={(e) => setProfile({ ...profile, birthdate: e.target.value })}
-                              className="w-full px-3 py-2 rounded-lg bg-white/80 dark:bg-zinc-800/80 border border-black/10 dark:border-white/10"
-                              type="date"
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <label className="text-xs opacity-70">Location</label>
-                            <input
-                              value={profile.location}
-                              onChange={(e) => setProfile({ ...profile, location: e.target.value })}
-                              className="w-full px-3 py-2 rounded-lg bg-white/80 dark:bg-zinc-800/80 border border-black/10 dark:border-white/10"
-                              placeholder="City / TZ"
-                            />
-                          </div>
-                          <div className="space-y-1 flex items-end">
-                            <Button onClick={personalizeProfile} className="w-full">Generate my cosmic brief</Button>
+                          <div className="text-right space-y-2">
+                            <div className="h-2 w-40 rounded-full bg-black/5 dark:bg-white/10 overflow-hidden">
+                              <div className="h-full bg-gradient-to-r from-indigo-500 to-emerald-400" style={{ width: `${onboardingProgress}%` }} />
+                            </div>
+                            <p className="text-xs font-semibold">Step {onboardingStep + 1} of {onboardingSteps.length}</p>
+                            <p className="text-xs opacity-70">{onboardingProgress}% tuned</p>
                           </div>
                         </div>
+
+                        <div className="mt-4 grid md:grid-cols-4 gap-2 text-xs font-semibold">
+                          {onboardingSteps.map((step, index) => {
+                            const active = index === onboardingStep;
+                            const complete = index < onboardingStep;
+                            return (
+                              <button
+                                key={step.id}
+                                onClick={() => goToOnboardingStep(index)}
+                                className={`rounded-xl border px-3 py-2 text-left transition shadow-sm ${
+                                  active
+                                    ? 'bg-indigo-600 text-white border-indigo-500'
+                                    : complete
+                                    ? 'bg-white/80 dark:bg-zinc-800/70 border-emerald-400/60 text-emerald-700 dark:text-emerald-200'
+                                    : 'bg-white/60 dark:bg-zinc-900/60 border-black/5 dark:border-white/10'
+                                }`}
+                              >
+                                <div className="flex items-center justify-between">
+                                  <span>{step.label}</span>
+                                  {complete ? <span className="text-lg">✓</span> : <span className="text-[10px] opacity-80">{index + 1}</span>}
+                                </div>
+                                <p className={`mt-1 text-[11px] leading-snug ${active ? 'text-white/90' : 'opacity-70'}`}>{step.helper}</p>
+                              </button>
+                            );
+                          })}
+                        </div>
+
+                        <div className="mt-4 p-4 rounded-2xl border border-indigo-100/60 dark:border-indigo-900/60 bg-gradient-to-br from-white to-indigo-50 dark:from-zinc-900 dark:to-indigo-950/30 shadow-inner">
+                          <div className="flex items-center justify-between gap-3 flex-wrap">
+                            <div>
+                              <p className="text-xs uppercase tracking-wide text-indigo-600">{currentOnboardingStep.label}</p>
+                              <h3 className="text-lg font-bold">{currentOnboardingStep.title}</h3>
+                              <p className="text-sm opacity-80">{currentOnboardingStep.helper}</p>
+                            </div>
+                            <Badge>{onboardingProgress}%</Badge>
+                          </div>
+
+                          {currentOnboardingStep.id === 'focus' ? (
+                            <div className="mt-3 grid sm:grid-cols-3 gap-3">
+                              {currentOnboardingStep.options.map((option) => {
+                                const intentCopy = {
+                                  'Money & work': 'Deal flow, launches, and closing days.',
+                                  'Love & connection': 'Dating, reconnection, and social glow.',
+                                  'Clarity & rhythm': 'Energy pacing, resets, and rituals.',
+                                };
+                                const active = profile.intent === option;
+                                return (
+                                  <button
+                                    key={option}
+                                    onClick={() => setProfile({ ...profile, intent: option })}
+                                    className={`text-left p-3 rounded-xl border transition shadow ${
+                                      active
+                                        ? 'bg-indigo-600 text-white border-indigo-500 scale-[1.01]'
+                                        : 'bg-white/80 dark:bg-zinc-900/70 border-black/5 dark:border-white/10 hover:border-indigo-400'
+                                    }`}
+                                  >
+                                    <div className="flex items-center justify-between text-sm font-semibold">
+                                      <span>{option}</span>
+                                      {active ? <span className="text-lg">✨</span> : <span className="text-xs opacity-60">Tap</span>}
+                                    </div>
+                                    <p className={`mt-1 text-xs leading-snug ${active ? 'text-white/90' : 'opacity-70'}`}>{intentCopy[option]}</p>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          ) : null}
+
+                          {currentOnboardingStep.id === 'identity' ? (
+                            <div className="mt-3 grid sm:grid-cols-2 gap-3">
+                              <div className="p-3 rounded-xl bg-white/80 dark:bg-zinc-900/70 border border-black/5 dark:border-white/10 space-y-1">
+                                <label className="text-xs uppercase tracking-wide opacity-70">Full name</label>
+                                <input
+                                  value={profile.name}
+                                  onChange={(e) => setProfile({ ...profile, name: e.target.value })}
+                                  className="w-full px-3 py-2 rounded-lg bg-white/90 dark:bg-zinc-800/80 border border-black/10 dark:border-white/10"
+                                  placeholder="Alex Driver"
+                                />
+                              </div>
+                              <div className="p-3 rounded-xl bg-white/80 dark:bg-zinc-900/70 border border-black/5 dark:border-white/10 space-y-1">
+                                <label className="text-xs uppercase tracking-wide opacity-70">Email</label>
+                                <input
+                                  value={profile.email}
+                                  onChange={(e) => setProfile({ ...profile, email: e.target.value })}
+                                  className="w-full px-3 py-2 rounded-lg bg-white/90 dark:bg-zinc-800/80 border border-black/10 dark:border-white/10"
+                                  placeholder="you@email.com"
+                                  type="email"
+                                />
+                              </div>
+                            </div>
+                          ) : null}
+
+                          {currentOnboardingStep.id === 'timing' ? (
+                            <div className="mt-3 grid sm:grid-cols-2 gap-3">
+                              <div className="p-3 rounded-xl bg-white/80 dark:bg-zinc-900/70 border border-black/5 dark:border-white/10 space-y-1">
+                                <label className="text-xs uppercase tracking-wide opacity-70">Birth date</label>
+                                <input
+                                  value={profile.birthdate}
+                                  onChange={(e) => setProfile({ ...profile, birthdate: e.target.value })}
+                                  className="w-full px-3 py-2 rounded-lg bg-white/90 dark:bg-zinc-800/80 border border-black/10 dark:border-white/10"
+                                  type="date"
+                                />
+                              </div>
+                              <div className="p-3 rounded-xl bg-white/80 dark:bg-zinc-900/70 border border-black/5 dark:border-white/10 space-y-1">
+                                <label className="text-xs uppercase tracking-wide opacity-70">Location</label>
+                                <input
+                                  value={profile.location}
+                                  onChange={(e) => setProfile({ ...profile, location: e.target.value })}
+                                  className="w-full px-3 py-2 rounded-lg bg-white/90 dark:bg-zinc-800/80 border border-black/10 dark:border-white/10"
+                                  placeholder="City / TZ"
+                                />
+                              </div>
+                            </div>
+                          ) : null}
+
+                          {currentOnboardingStep.id === 'connect' ? (
+                            <div className="mt-3 grid sm:grid-cols-2 gap-3">
+                              <div className="p-3 rounded-xl bg-white/80 dark:bg-zinc-900/70 border border-black/5 dark:border-white/10 space-y-1">
+                                <label className="text-xs uppercase tracking-wide opacity-70">Phone (nudges)</label>
+                                <input
+                                  value={profile.phone}
+                                  onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
+                                  className="w-full px-3 py-2 rounded-lg bg-white/90 dark:bg-zinc-800/80 border border-black/10 dark:border-white/10"
+                                  placeholder="(555) 123-4567"
+                                  type="tel"
+                                />
+                                <p className="text-[11px] opacity-70">Optional SMS for high-energy windows.</p>
+                              </div>
+                              <div className="p-3 rounded-xl bg-white/80 dark:bg-zinc-900/70 border border-black/5 dark:border-white/10 space-y-1">
+                                <label className="text-xs uppercase tracking-wide opacity-70">Email (alerts)</label>
+                                <input
+                                  value={profile.email}
+                                  onChange={(e) => setProfile({ ...profile, email: e.target.value })}
+                                  className="w-full px-3 py-2 rounded-lg bg-white/90 dark:bg-zinc-800/80 border border-black/10 dark:border-white/10"
+                                  placeholder="you@example.com"
+                                  type="email"
+                                />
+                                <p className="text-[11px] opacity-70">We’ll also drop your brief here.</p>
+                              </div>
+                            </div>
+                          ) : null}
+                        </div>
+
+                        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-xs">
+                          <Button variant="ghost" onClick={prevOnboardingStep} disabled={onboardingStep === 0}>
+                            Previous
+                          </Button>
+                          <div className="flex items-center gap-2">
+                            <span className="opacity-70">Swipe through like the sample quiz. Save at the end.</span>
+                            <Button onClick={isFinalOnboardingStep ? personalizeProfile : nextOnboardingStep}>
+                              {isFinalOnboardingStep ? 'Generate my cosmic brief' : 'Next question'}
+                            </Button>
+                          </div>
+                        </div>
+
                         {!showOnboarding && profileInsights ? (
                           <p className="mt-3 text-xs opacity-80">Saved! {profile.name || 'Explorer'}, we tuned your feed to {profileInsights.astroSign || 'your sign'} and Life Path {profileInsights.lifePath || '?'}.</p>
                         ) : (
